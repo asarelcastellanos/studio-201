@@ -7,6 +7,7 @@ import { REFUSAL, bashWritesCode, isCodePath, readOnlyRefusal, readOnlyRole } fr
 import type { PolicyContext } from '../src/policy'
 
 const NAME = 'studio'
+const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
 const USAGE = 'Usage: /studio policy [on|off]'
 
@@ -78,7 +79,8 @@ function commandOf(input: unknown): string {
 		: ''
 }
 
-async function resolveLookup($: EngineInterface, request: Lookup): Promise<string | undefined> {
+async function resolveLookup($: EngineInterface, request: Lookup, budgetMs: number): Promise<string | undefined> {
+	if (budgetMs <= 0) return undefined
 	const argv =
 		request.kind === 'branch'
 			? ['git', 'branch', '--show-current']
@@ -94,7 +96,7 @@ async function resolveLookup($: EngineInterface, request: Lookup): Promise<strin
 					'.baseRefName',
 				]
 	try {
-		const result = await $.process.run(argv, { cwd: request.cwd, timeoutMs: 15000 })
+		const result = await $.process.run(argv, { cwd: request.cwd, timeoutMs: budgetMs })
 		const out = result.stdout.trim()
 		return result.exitCode === 0 && out !== '' ? out : undefined
 	} catch {
@@ -105,6 +107,7 @@ async function resolveLookup($: EngineInterface, request: Lookup): Promise<strin
 async function mergesMain($: EngineInterface, command: string): Promise<boolean> {
 	const cwd = await $.session.cwd()
 	const home = (await $.env.get('HOME')) ?? ''
+	const deadline = Date.now() + LOOKUP_BUDGET_MS
 	const known = new Map<string, string | undefined>()
 	const pending = new Map<string, Lookup>()
 	for (;;) {
@@ -120,7 +123,7 @@ async function mergesMain($: EngineInterface, command: string): Promise<boolean>
 			},
 		})
 		if (!verdict || pending.size === 0) return verdict
-		for (const [key, request] of pending) known.set(key, await resolveLookup($, request))
+		for (const [key, request] of pending) known.set(key, await resolveLookup($, request, deadline - Date.now()))
 	}
 }
 

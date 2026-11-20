@@ -431,7 +431,7 @@ const FIXERS: Record<string, (args: readonly string[]) => boolean> = {
 	cargo: args => (args[0] === 'fmt' && !has(args, '--check')) || has(args, '--fix'),
 }
 
-function looksLikeRef(operand: string): boolean {
+export function looksLikeRef(operand: string): boolean {
 	if (operand === '.' || operand.startsWith(':') || operand.startsWith('/') || operand.startsWith('~')) return false
 	if (/\.[A-Za-z][A-Za-z0-9]*$/.test(operand)) return false
 	if (operand.includes('/')) return REF_PREFIXES.includes(operand.split('/')[0] ?? '')
