@@ -5,6 +5,7 @@ export type PolicyContext = {
 	cwd: string
 	home: string
 	scratchpad?: string
+	strict?: boolean
 	real?: (absolute: string) => string
 }
 
@@ -15,6 +16,8 @@ type Parsed = { segments: Segment[]; nested: string[] }
 type Invocation = { cmd: string; args: string[]; viaXargs: boolean; fed: boolean }
 
 type InterpreterFlags = { short: string; long: readonly string[] }
+
+const READ_ONLY_ROLES = ['scout', 'researcher', 'reviewer', 'design-critic']
 
 const UNKNOWN_CWD = '/unknown-cwd'
 
@@ -61,6 +64,19 @@ function normalize(path: string, cwd: string): string {
 	return '/' + out.join('/')
 }
 
+export function readOnlyRole(agentType: string): string | undefined {
+	const role = agentType.startsWith('studio-201:') ? agentType.slice('studio-201:'.length) : undefined
+	return role !== undefined && READ_ONLY_ROLES.includes(role) ? role : undefined
+}
+
+export function readOnlyRefusal(role: string): string {
+	return `studio-201 policy: ${role} is read-only. Report what to change instead.`
+}
+
+function isMarkdown(path: string, ctx: PolicyContext): boolean {
+	return !ctx.strict && path.toLowerCase().endsWith('.md')
+}
+
 function inside(abs: string, root: string): boolean {
 	return abs === root || abs.startsWith(root + '/')
 }
@@ -81,7 +97,7 @@ function inScratchpad(abs: string, ctx: PolicyContext): boolean {
 export function isCodePath(path: string, ctx: PolicyContext): boolean {
 	const abs = absolute(path, ctx)
 	if (abs.startsWith('/dev/')) return false
-	if (abs.toLowerCase().endsWith('.md')) return false
+	if (isMarkdown(abs, ctx)) return false
 	return !inScratchpad(abs, ctx)
 }
 
@@ -348,7 +364,7 @@ function destinationWrites(args: readonly string[], ctx: PolicyContext, removesS
 	const toIsDirectory = directory !== undefined || /(?:^|\/)(?:\.{1,2})?$/.test(to)
 	if (removesSources && sources.some(source => targetIsCode(source, ctx))) return true
 	if (!toIsDirectory) return targetIsCode(to, ctx)
-	return targetIsCode(to, ctx) && sources.some(source => !source.toLowerCase().endsWith('.md'))
+	return targetIsCode(to, ctx) && sources.some(source => !isMarkdown(source, ctx))
 }
 
 function inPlaceWrites(args: readonly string[], ctx: PolicyContext): boolean {

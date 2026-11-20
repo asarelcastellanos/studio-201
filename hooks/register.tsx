@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { REFUSAL, bashWritesCode, isCodePath } from '../src/policy'
+import { REFUSAL, bashWritesCode, isCodePath, readOnlyRefusal, readOnlyRole } from '../src/policy'
 import type { PolicyContext } from '../src/policy'
 
 const NAME = 'studio'
@@ -15,12 +15,15 @@ async function policyCommand($: EngineInterface, args: string): Promise<string> 
 	return (await read($, policyAtom)) ? 'on' : 'off'
 }
 
-async function baseContext($: EngineInterface): Promise<PolicyContext> {
+type Restriction = { strict: boolean; refusal: string }
+
+async function baseContext($: EngineInterface, strict: boolean): Promise<PolicyContext> {
 	const info = await $.session.info()
 	return {
 		cwd: await $.session.cwd(),
 		home: (await $.env.get('HOME')) ?? '',
 		scratchpad: info.scratchpadDir,
+		strict,
 	}
 }
 
@@ -40,8 +43,12 @@ async function realPath($: EngineInterface, path: string): Promise<string> {
 	return '/unresolved'
 }
 
-async function writesCode($: EngineInterface, check: (ctx: PolicyContext) => boolean): Promise<boolean> {
-	const base = await baseContext($)
+async function writesCode(
+	$: EngineInterface,
+	strict: boolean,
+	check: (ctx: PolicyContext) => boolean,
+): Promise<boolean> {
+	const base = await baseContext($, strict)
 	const asked = new Set<string>()
 	const first = check({
 		...base,
@@ -56,8 +63,11 @@ async function writesCode($: EngineInterface, check: (ctx: PolicyContext) => boo
 	return check({ ...base, real: path => known.get(path) ?? path })
 }
 
-async function restricted($: EngineInterface, agentId: string | undefined): Promise<boolean> {
-	return agentId === undefined && (await read($, policyAtom))
+async function restriction($: EngineInterface, agentId: string | undefined): Promise<Restriction | undefined> {
+	if (agentId === undefined) return (await read($, policyAtom)) ? { strict: false, refusal: REFUSAL } : undefined
+	const type = (await $.agent.list()).find(agent => agent.id === agentId)?.type
+	const role = type === undefined ? undefined : readOnlyRole(type)
+	return role === undefined ? undefined : { strict: true, refusal: readOnlyRefusal(role) }
 }
 
 export const register: Register = on => {
@@ -80,18 +90,21 @@ export const register: Register = on => {
 	}).catch(() => ({ text: 'studio: the command failed.' }))
 
 	on('tool.call', { tool: ['Edit', 'Write', 'NotebookEdit'] }, async ($, e, next) => {
-		if (!(await restricted($, e.agentId))) return next(e)
+		const rule = await restriction($, e.agentId)
+		if (rule === undefined) return next(e)
+		if (rule.strict) return { deny: rule.refusal }
 		const path = 'notebook_path' in e ? e.notebook_path : e.file_path
-		if (!(await writesCode($, ctx => isCodePath(path, ctx)))) return next(e)
-		return { deny: REFUSAL }
+		if (!(await writesCode($, false, ctx => isCodePath(path, ctx)))) return next(e)
+		return { deny: rule.refusal }
 	}).catch(($, e, next) =>
 		next.called ? next(e) : { deny: `${REFUSAL} The policy check failed, so the write is refused.` },
 	)
 
 	on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-		if (!(await restricted($, e.agentId))) return next(e)
-		if (!(await writesCode($, ctx => bashWritesCode(e.command, ctx)))) return next(e)
-		return { deny: REFUSAL }
+		const rule = await restriction($, e.agentId)
+		if (rule === undefined) return next(e)
+		if (!(await writesCode($, rule.strict, ctx => bashWritesCode(e.command, ctx)))) return next(e)
+		return { deny: rule.refusal }
 	}).catch(($, e, next) =>
 		next.called ? next(e) : { deny: `${REFUSAL} The policy check failed, so the command is refused.` },
 	)
