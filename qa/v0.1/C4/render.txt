@@ -1,0 +1,83 @@
+$ cd <copy of origin/feature/session-meter at 7ff7f52 plus c4.test.tsx> && claude plugin test .
+=== A0 policy on (default), no turns yet
+Studio 201
+Opus 5.5
+
+── Session ─────────
+since 10:02 AM
+0 since load
+est. $5.04
+
+── Context ─────────
+███░░░░░░░ 31%
+310k / 1M
+
+── Policy ──────────
+on
+=== A1 policy on, after turns
+Studio 201
+Opus 5.5
+
+── Session ─────────
+since 10:02 AM
+157k since load
+est. $5.04
+
+── Context ─────────
+███░░░░░░░ 31%
+310k / 1M
+
+── Policy ──────────
+on
+
+opus 5.5   102k
+sonnet 4.5 55k
+=== policy off command result: {"text":"off"}
+=== B policy off
+Studio 201
+Opus 5.5
+
+── Session ─────────
+since 10:02 AM
+157k since load
+est. $5.04
+
+── Context ─────────
+███░░░░░░░ 31%
+310k / 1M
+
+── Policy ──────────
+off
+
+opus 5.5   102k
+sonnet 4.5 55k
+=== policy on command result: {"text":"on"}
+=== C policy back on
+Studio 201
+Opus 5.5
+
+── Session ─────────
+since 10:02 AM
+157k since load
+est. $5.04
+
+── Context ─────────
+███░░░░░░░ 31%
+310k / 1M
+
+── Policy ──────────
+on
+
+opus 5.5   102k
+sonnet 4.5 55k
+
+c4.test.tsx:
+(pass) C4 pane text render [69.10ms]
+
+tests/forecast.test.ts:
+(fail) the file did not load
+  tests/forecast.test.ts: cannot import "node:assert/strict" (from tests/forecast.test.ts): a hooks module imports its own files by relative path and "claude-code", nothing else
+
+ 1 pass
+ 1 fail
+Ran 2 tests across 2 files. [0.18s]
