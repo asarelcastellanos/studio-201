@@ -31,14 +31,16 @@ const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
 const USAGE = 'Usage: /studio policy [on|off], /studio setup or /studio update'
 const UPDATE_TOOL = 'studio_update'
 const UPDATE_TOOL_ID = 'mcp__studio-201__studio_update'
+const UPDATE_ASK_REASON = 'studio-201: this pulls the clone and reinstalls Studio 201. Approve or decline.'
+const UPDATE_REFUSAL = 'studio-201 policy: only the main session updates Studio 201, after the owner approves.'
 const UPDATE_TOOL_DESCRIPTION =
 	'Updates the Studio 201 plugin to the latest version and reports the old and new version. Call it only when the user asks to update, upgrade or get the latest Studio 201. It pulls the local clone of the plugin if there is one, updates the marketplace and the plugin, and refreshes the AGENTS.md copy if setup has run. It takes no input. Give the user its result as it is.'
 const SETUP_KEY = 'setup'
-const LOCK_KEY = 'setup-lock'
+const SETUP_LOCK_KEY = 'setup-lock'
+const UPDATE_LOCK_KEY = 'update-lock'
 const LOCK_TTL_MS = 15 * 60 * 1000
 const ASK_ROUNDS = 3
 const UPDATE_STEP_TIMEOUT_MS = 120000
-const RELOAD_DELAY_MS = 1500
 
 async function policyCommand($: EngineInterface, args: string): Promise<string> {
 	const arg = args.trim().toLowerCase()
@@ -94,19 +96,19 @@ function isLock(value: unknown): value is Lock {
 	return typeof value === 'object' && value !== null && 'id' in value && 'at' in value
 }
 
-async function takeLock($: EngineInterface): Promise<string | undefined> {
+async function takeLock($: EngineInterface, key: string): Promise<string | undefined> {
 	const now = await $.clock.now()
-	const held = await $.store.get(LOCK_KEY)
+	const held = await $.store.get(key)
 	if (isLock(held) && now - held.at < LOCK_TTL_MS) return undefined
 	const id = `${now}-${Math.random().toString(36).slice(2)}`
-	await $.store.set(LOCK_KEY, { id, at: now })
-	const check = await $.store.get(LOCK_KEY)
+	await $.store.set(key, { id, at: now })
+	const check = await $.store.get(key)
 	return isLock(check) && check.id === id ? id : undefined
 }
 
-async function dropLock($: EngineInterface, id: string): Promise<void> {
-	const held = await $.store.get(LOCK_KEY)
-	if (isLock(held) && held.id === id) await $.store.delete(LOCK_KEY)
+async function dropLock($: EngineInterface, key: string, id: string): Promise<void> {
+	const held = await $.store.get(key)
+	if (isLock(held) && held.id === id) await $.store.delete(key)
 }
 
 type Outcome = { text: string; show: boolean }
@@ -159,7 +161,7 @@ async function recordDone($: EngineInterface): Promise<void> {
 }
 
 async function runSetup($: EngineInterface): Promise<Outcome> {
-	const lock = await takeLock($)
+	const lock = await takeLock($, SETUP_LOCK_KEY)
 	if (lock === undefined) return { text: 'Setup is already running in another session.', show: false }
 	try {
 		return await installSetup($)
@@ -167,7 +169,7 @@ async function runSetup($: EngineInterface): Promise<Outcome> {
 		const text = error instanceof SetupFailure ? describeFailure(error) : `Setup failed: ${error instanceof Error ? error.message : String(error)}`
 		return { text, show: true }
 	} finally {
-		await dropLock($, lock)
+		await dropLock($, SETUP_LOCK_KEY, lock)
 	}
 }
 
@@ -183,21 +185,11 @@ function startSetup($: EngineInterface): void {
 
 function updateIo($: EngineInterface): UpdateIo {
 	return {
-		run: argv => $.process.run(argv, { timeoutMs: UPDATE_STEP_TIMEOUT_MS }),
+		run: (argv, env) => $.process.run(argv, { timeoutMs: UPDATE_STEP_TIMEOUT_MS, ...(env === undefined ? {} : { env }) }),
 		files: setupIo($),
 		setupDone: async () => {
 			const record = await $.store.get(SETUP_KEY)
 			return typeof record === 'object' && record !== null && 'status' in record && record.status === 'done'
-		},
-		requestReload: () => {
-			$.clock.after(RELOAD_DELAY_MS, async () => {
-				try {
-					const result = await $.command.run({ command: 'reload-plugins' })
-					$.ui.log(result.text ?? 'Reloaded plugins.')
-				} catch (error) {
-					$.ui.log(`Could not reload plugins: ${error instanceof Error ? error.message : String(error)}`)
-				}
-			})
 		},
 		log: text => $.ui.log(text),
 	}
@@ -208,11 +200,15 @@ let updating = false
 async function updateStudio($: EngineInterface): Promise<{ ok: boolean; text: string }> {
 	if (updating) return { ok: false, text: 'An update is already running.' }
 	updating = true
+	let lock: string | undefined
 	try {
+		lock = await takeLock($, UPDATE_LOCK_KEY)
+		if (lock === undefined) return { ok: false, text: 'An update is already running in another session.' }
 		return { ok: true, text: await runUpdate(updateIo($), await resolvePaths($)) }
 	} catch (error) {
 		return { ok: false, text: `Update failed: ${error instanceof Error ? error.message : String(error)}` }
 	} finally {
+		if (lock !== undefined) await dropLock($, UPDATE_LOCK_KEY, lock).catch(() => undefined)
 		updating = false
 	}
 }
@@ -382,6 +378,14 @@ export const register: Register = on => {
 		return { deny: MERGE_REFUSAL }
 	}).catch(($, e, next) =>
 		next.called ? next(e) : { deny: `${MERGE_REFUSAL} The merge check failed, so the command is refused.` },
+	)
+
+	on('tool.check', { tool: UPDATE_TOOL_ID }, async ($, e, next) => {
+		if (e.agentId !== undefined) return { decision: 'deny', reason: UPDATE_REFUSAL }
+		const verdict = await next(e)
+		return verdict.decision === 'deny' ? verdict : { decision: 'ask', reason: UPDATE_ASK_REASON }
+	}).catch(($, e, next) =>
+		next.called ? next(e) : e.agentId !== undefined ? { decision: 'deny', reason: UPDATE_REFUSAL } : { decision: 'ask', reason: UPDATE_ASK_REASON },
 	)
 
 	on('tool.check', { tool: 'Bash' }, async ($, e, next) => {

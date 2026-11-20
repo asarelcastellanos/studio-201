@@ -75,17 +75,17 @@ Setup checks that `settings.json` is strict JSON before it changes anything. If 
 
 ## Update
 
-Type `/studio update`, or ask Claude to update Studio 201. Claude calls the `studio_update` tool, which runs the same steps:
+Type `/studio update`, or ask Claude to update Studio 201. Claude calls the `studio_update` tool, which runs the same steps. The tool asks you to approve before it runs, and a subagent cannot call it. `/studio update` typed by you asks nothing more.
 
 1. It reads the installed version.
-2. If the Studio 201 marketplace is a local clone, it runs `git pull --ff-only` in that clone and reports the branch and the result. If the pull fails, because the clone has local commits that diverge from upstream or changes that conflict, the update stops before it changes anything and says why. Fix the clone and run it again.
-3. It runs `claude plugin marketplace update studio-201` and `claude plugin update studio-201@studio-201`.
-4. If setup has run, it refreshes `~/.claude/studio-201/AGENTS.md` from the updated plugin. It touches no other personal file.
+2. If the Studio 201 marketplace is a local clone, it runs `git pull --ff-only` in that clone and reports the branch and the result. The clone must be on `main` or a `release/v*` branch. On any other branch the update stops before it pulls and tells you to switch. If the pull fails, because the clone has local commits that diverge from upstream or changes that conflict, the update stops before it changes anything and says why. If the folder is not a git checkout, the report says "Not a git checkout, nothing pulled." and the update goes on.
+3. It runs `claude plugin marketplace update studio-201` and `claude plugin update studio-201@studio-201 --yes`.
+4. If setup has run, it refreshes `~/.claude/studio-201/AGENTS.md` from the updated plugin, taking it from the clone when the plugin is read from one. It touches no other personal file.
 5. It reports `Updated vOLD to vNEW. Run /reload-plugins to apply.`, or `Studio 201 is up to date (vX).` when nothing changed.
 
-Each command and its output go to the session log. An error stops the update and is shown as it happened. A clone installed from a local path is the case in step 2. A marketplace added from GitHub has no clone to pull, so the update skips step 2 and the marketplace update fetches the latest version.
+Each command and its output go to the session log. An error stops the update and is shown as it happened. If a step fails after the pull or the plugin update already ran, the error says what already happened. Only one update runs at a time, across sessions. A marketplace added from GitHub has no clone to pull, so the update skips step 2 and the marketplace update fetches the latest version.
 
-After the update, Studio 201 asks Claude Code to reload plugins. If the reload does not happen, run `/reload-plugins` to load the new version. Without a reload, the new version loads at the next session start.
+Studio 201 does not reload plugins itself. Run `/reload-plugins` after the update to load the new version. Without it, the new version loads at the next session start.
 
 ## Docs
 
