@@ -15,7 +15,11 @@ export const registerStudio = (on: On) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'studio', description: 'Set up or update Studio 201', argumentHint: '[setup|update]' })
     const settled = await next(e)
-    void attempt(firstRun($)).then(text => text && $.ui.toast(text))
+    void attempt(firstRun($)).then(text => {
+      if (text === undefined) return
+      $.ui.log(text)
+      if (text.includes('\n')) $.ui.toast('The Studio 201 setup report is in the transcript.')
+    })
     return settled
   })
 

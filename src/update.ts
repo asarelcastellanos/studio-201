@@ -3,7 +3,7 @@ import { isRecord, parseInstalled } from './plugins'
 import { refreshAgents } from './setup'
 
 type Engine = Pick<EngineInterface, 'command' | 'env' | 'fs' | 'plugin' | 'process' | 'store' | 'ui'>
-type Outcome = { from: string; to: string; reloaded: boolean }
+type Outcome = { from: string; to: string; agentsFailed: boolean }
 
 const MARKETPLACE = 'studio-201'
 const PLUGIN_ID = `studio-201@${MARKETPLACE}`
@@ -18,9 +18,11 @@ export const readVersion = (json: string) => {
   }
 }
 
-export const describeUpdate = ({ from, to, reloaded }: Outcome) => {
-  if (from === to) return `Studio 201 v${to} is already the latest.`
-  return reloaded ? `Updated v${from} to v${to} and reloaded plugins.` : `Updated v${from} to v${to}. Run /reload-plugins to apply.`
+export const describeUpdate = ({ from, to, agentsFailed }: Outcome) => {
+  const parts = from === to ? [`Studio 201 v${to} is already the latest.`] : [`Updated v${from} to v${to}.`]
+  if (agentsFailed) parts.push('Could not refresh the AGENTS.md copy.')
+  if (from !== to) parts.push("Run /reload-plugins if the new version isn't active.")
+  return parts.join(' ')
 }
 
 const lastLine = (text: string) => text.trim().split('\n').pop() ?? ''
@@ -38,8 +40,8 @@ export async function runUpdate($: Engine) {
   const installed = parseInstalled(listed.stdout).find(entry => entry.id === PLUGIN_ID)
   if (installed === undefined) return 'Updated, but the new version is not in the plugin list.'
 
-  await refreshAgents($, installed.installPath)
+  const agentsFailed = await refreshAgents($, installed.installPath).then(() => false, () => true)
   const to = installed.version
-  const reloaded = from !== to && (await $.command.run({ command: 'reload-plugins' }).then(() => true, () => false))
-  return describeUpdate({ from, to, reloaded })
+  if (from !== to) void $.command.run({ command: 'reload-plugins' }).catch(() => {})
+  return describeUpdate({ from, to, agentsFailed })
 }

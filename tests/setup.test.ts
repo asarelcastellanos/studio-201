@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 import { parseInstalled } from '../src/plugins'
-import { IMPORT_LINE, addImportLine, pluginDirsNote, workbenchToDisable } from '../src/setup'
+import { IMPORT_LINE, addImportLine, workbenchToDisable } from '../src/setup'
 
 type Row = [name: string, before: string, after: string]
 
@@ -18,28 +18,19 @@ test('the import line is added once and nothing else changes', () => {
   }
 })
 
-test('only enabled workbench monitor and model-policy plugins are picked', () => {
-  const entry = (id: string, enabled = true) => ({ id, version: '0.1.0', enabled, scope: 'session', installPath: '/x' })
+test('workbench plugins are split into disable and skipped by scope', () => {
+  const entry = (id: string, scope: string, enabled = true) => ({ id, version: '0.1.0', enabled, scope, installPath: '/x' })
   const listed = JSON.stringify([
-    entry('session-monitor@inline'),
-    entry('model-policy@claude-workbench'),
-    entry('session-coach@inline'),
-    entry('model-policy@inline', false),
+    entry('session-monitor@inline', 'session'),
+    entry('model-policy@claude-workbench', 'user'),
+    entry('model-policy@claude-workbench', 'project'),
+    entry('session-monitor@claude-workbench', 'local'),
+    entry('session-coach@inline', 'session'),
+    entry('model-policy@inline', 'session', false),
     { id: 'broken' },
   ])
-  expect(workbenchToDisable(parseInstalled(listed)).map(found => found.id)).toEqual(['session-monitor@inline', 'model-policy@claude-workbench'])
+  const { disable, skipped } = workbenchToDisable(parseInstalled(listed))
+  expect(disable.map(found => `${found.id} ${found.scope}`)).toEqual(['session-monitor@inline session', 'model-policy@claude-workbench user'])
+  expect(skipped.map(found => `${found.id} ${found.scope}`)).toEqual(['model-policy@claude-workbench project', 'session-monitor@claude-workbench local'])
   expect(parseInstalled('not json')).toEqual([])
-})
-
-test('the plugin-dirs note names only plugins that load from CLAUDE_CODE_PLUGIN_DIRS', () => {
-  const entry = (id: string, scope: string) => ({ id, version: '0.1.0', enabled: true, scope, installPath: '/x' })
-  const note = (...entries: ReturnType<typeof entry>[]) => pluginDirsNote(entries)
-
-  expect(note(entry('session-monitor@inline', 'session'), entry('model-policy@inline', 'session'))).toBe(
-    'session-monitor and model-policy load from CLAUDE_CODE_PLUGIN_DIRS in ~/.claude/settings.json. Remove those paths there to turn them off for good.',
-  )
-  expect(note(entry('session-monitor@inline', 'session'), entry('model-policy@claude-workbench', 'user'))).toBe(
-    'session-monitor loads from CLAUDE_CODE_PLUGIN_DIRS in ~/.claude/settings.json. Remove that path there to turn it off for good.',
-  )
-  expect(note(entry('model-policy@claude-workbench', 'user'))).toBeUndefined()
 })

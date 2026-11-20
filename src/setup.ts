@@ -5,6 +5,10 @@ type Engine = Pick<EngineInterface, 'env' | 'fs' | 'plugin' | 'process' | 'store
 
 export const IMPORT_LINE = '@~/.claude/studio-201/AGENTS.md'
 const WORKBENCH = new Set(['session-monitor', 'model-policy'])
+const DISABLE_SCOPES = new Set(['user', 'session'])
+
+const DETAILS =
+  'Studio 201 setup copies AGENTS.md to ~/.claude/studio-201, adds one import line to ~/.claude/CLAUDE.md, links ~/.codex/AGENTS.md when Codex is set up, and disables the claude-workbench session-monitor and model-policy plugins. The disable step writes to ~/.claude/settings.json through the claude CLI.'
 
 export const addImportLine = (content: string) => {
   if (content.split('\n').some(line => line.trim() === IMPORT_LINE)) return content
@@ -12,14 +16,9 @@ export const addImportLine = (content: string) => {
   return `${content}${separator}${IMPORT_LINE}\n`
 }
 
-export const workbenchToDisable = (installed: Installed[]) => installed.filter(entry => entry.enabled && WORKBENCH.has(pluginName(entry.id) ?? ''))
-
-const isFromPluginDirs = ({ id, scope }: Installed) => scope === 'session' || id.endsWith('@inline')
-
-export const pluginDirsNote = (targets: Installed[]) => {
-  const names = targets.filter(isFromPluginDirs).map(({ id }) => pluginName(id))
-  if (names.length === 0) return undefined
-  return `${names.join(' and ')} ${names.length === 1 ? 'loads' : 'load'} from CLAUDE_CODE_PLUGIN_DIRS in ~/.claude/settings.json. Remove ${names.length === 1 ? 'that path' : 'those paths'} there to turn ${names.length === 1 ? 'it' : 'them'} off for good.`
+export const workbenchToDisable = (installed: Installed[]) => {
+  const found = installed.filter(entry => entry.enabled && WORKBENCH.has(pluginName(entry.id) ?? ''))
+  return { disable: found.filter(entry => DISABLE_SCOPES.has(entry.scope)), skipped: found.filter(entry => !DISABLE_SCOPES.has(entry.scope)) }
 }
 
 function claude($: Engine, args: string[]) {
@@ -69,30 +68,44 @@ async function linkCodex($: Engine, home: string) {
 async function disableWorkbench($: Engine) {
   const listed = await claude($, ['plugin', 'list', '--json'])
   if (listed.exitCode !== 0) return ['Did not touch the claude-workbench plugins: claude plugin list failed.']
-  const targets = workbenchToDisable(parseInstalled(listed.stdout))
-  if (targets.length === 0) return ['No claude-workbench monitor or model-policy plugin is enabled.']
+  const { disable, skipped } = workbenchToDisable(parseInstalled(listed.stdout))
+  if (disable.length === 0 && skipped.length === 0) return ['No claude-workbench monitor or model-policy plugin is enabled.']
   const lines: string[] = []
-  for (const target of targets) {
-    const { id, scope } = target
-    const ran = await claude($, ['plugin', 'disable', id, ...(isFromPluginDirs(target) ? [] : ['--scope', scope])])
-    lines.push(ran.exitCode === 0 ? `Disabled ${id}.` : `Could not disable ${id}: ${ran.stderr.trim()}`)
+  let disabled = false
+  for (const { id, scope } of disable) {
+    const ran = await claude($, ['plugin', 'disable', id, ...(scope === 'session' ? [] : ['--scope', scope])])
+    disabled = disabled || ran.exitCode === 0
+    lines.push(ran.exitCode === 0 ? `Disabled ${id} in ~/.claude/settings.json. Undo with: claude plugin enable ${id}` : `Could not disable ${id}: ${ran.stderr.trim()}`)
   }
-  const note = pluginDirsNote(targets)
-  return note === undefined ? lines : [...lines, note]
+  if (disabled) lines.push('Running sessions keep these plugins until restart.')
+  for (const { id, scope } of skipped) lines.push(`Skipped ${id}: it is installed at ${scope} scope. Disable it by hand with: claude plugin disable ${id} --scope ${scope}`)
+  return lines
+}
+
+async function step(label: string, job: Promise<string | string[]>) {
+  try {
+    return [await job].flat()
+  } catch (error) {
+    return [`${label} failed: ${error instanceof Error ? error.message : String(error)}`]
+  }
 }
 
 export async function runSetup($: Engine) {
   const home = await homeDir($)
-  const lines = [await copyAgents($, home), await importAgents($, home), await linkCodex($, home), ...(await disableWorkbench($))]
+  const lines = [
+    ...(await step('Copying AGENTS.md', copyAgents($, home))),
+    ...(await step('Adding the import line', importAgents($, home))),
+    ...(await step('Linking Codex', linkCodex($, home))),
+    ...(await step('Disabling the workbench plugins', disableWorkbench($))),
+  ]
   await $.store.set('setup', 'done')
   return lines.join('\n')
 }
 
 export async function firstRun($: Engine) {
   if ((await $.store.get('setup')) !== undefined) return undefined
-  const answer = await $.ui
-    .ask('Set up Studio 201 now? It copies AGENTS.md to ~/.claude/studio-201, adds one import line to ~/.claude/CLAUDE.md, links it for Codex, and turns off the claude-workbench monitor and model-policy plugins.', ['Yes', 'No'])
-    .catch(() => undefined)
+  $.ui.log(DETAILS)
+  const answer = await $.ui.ask('Set up Studio 201? It edits ~/.claude/CLAUDE.md and ~/.claude/settings.json.', ['Yes', 'No']).catch(() => undefined)
   if (answer === undefined) return 'Run /studio setup to connect Studio 201 to this Mac.'
   if (answer !== 'Yes') {
     await $.store.set('setup', 'declined')

@@ -9,7 +9,9 @@ test('readVersion reads plugin.json and rejects anything else', () => {
 })
 
 test('describeUpdate reports old and new versions', () => {
-  expect(describeUpdate({ from: '0.1.0', to: '0.2.0', reloaded: true })).toBe('Updated v0.1.0 to v0.2.0 and reloaded plugins.')
-  expect(describeUpdate({ from: '0.1.0', to: '0.2.0', reloaded: false })).toBe('Updated v0.1.0 to v0.2.0. Run /reload-plugins to apply.')
-  expect(describeUpdate({ from: '0.2.0', to: '0.2.0', reloaded: false })).toBe('Studio 201 v0.2.0 is already the latest.')
+  expect(describeUpdate({ from: '0.1.0', to: '0.2.0', agentsFailed: false })).toBe("Updated v0.1.0 to v0.2.0. Run /reload-plugins if the new version isn't active.")
+  expect(describeUpdate({ from: '0.1.0', to: '0.2.0', agentsFailed: true })).toBe(
+    "Updated v0.1.0 to v0.2.0. Could not refresh the AGENTS.md copy. Run /reload-plugins if the new version isn't active.",
+  )
+  expect(describeUpdate({ from: '0.2.0', to: '0.2.0', agentsFailed: false })).toBe('Studio 201 v0.2.0 is already the latest.')
 })
