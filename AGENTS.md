@@ -4,6 +4,33 @@ These rules apply to every agent and person who works in this repo.
 
 Studio 201 is for solo developers: new projects, projects they maintain, and contributions to existing projects, with or without prior knowledge of them.
 
+## Writing
+
+- Put the answer first.
+- Do not recap what the reader just read.
+- Cut filler, hedging and chatbot phrases.
+- Use no em dashes.
+- Write headings in sentence case.
+- Use the active voice and name who acts.
+- Use the plain word: "use", not "utilize".
+- The same rules apply to UI copy and READMEs.
+
+## Code
+
+- Write almost no comments.
+- Keep a comment only for a workaround for an outside bug, a constraint that isn't obvious, or a link to a spec claim.
+- For any other comment, rename or restructure the code instead.
+- Leave no dead code.
+- Write an automated test only when the logic has many cases, a bug came back, it checks a data invariant, or there is nothing visible to check.
+- Write tests table-driven: one test per rule, one row per case.
+
+## Decisions
+
+- When you make a conceptual decision or a major assumption that your brief doesn't cover, report it under "Decisions and assumptions" in your final report. Give the framing, the options, the pros and cons, and the status.
+- The orchestrator adds each reported decision to the project's `docs/decisions.md`, and creates the file if it is missing.
+- Append entries. Never rewrite one.
+- Record a change as a new entry that names the entry it replaces.
+
 ## Delegation
 
 - The orchestrator plans, writes briefs, moves the board and reviews results.
