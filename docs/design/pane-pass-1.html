@@ -1,0 +1,245 @@
+<title>Studio 201 Mods</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Design pass 1: grayscale wireframe of one docked side pane. Pass 2 picks color. */
+:root{--bg:#FFFFFF;--fg:#151515;--muted:#666666;--line:#D0D0D0;--fill:#F3F3F3;--term:#FAFAFA;
+  --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--m:ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161616;--fg:#EDEDED;--muted:#A0A0A0;--line:#3A3A3A;--fill:#202020;--term:#101010;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161616;--fg:#EDEDED;--muted:#A0A0A0;--line:#3A3A3A;--fill:#202020;--term:#101010;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--f);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1000px;margin:0 auto;padding-block:32px 72px;display:flex;flex-direction:column;gap:40px}
+h1{font-size:1.9rem;margin:0;line-height:1.2}
+h2{font-size:1.3rem;margin:0}
+p{margin:0;max-width:70ch}
+section{display:flex;flex-direction:column;gap:12px}
+.note{color:var(--muted);font-size:.9rem}
+pre{margin:0;font-family:var(--m);font-size:.8rem;line-height:1.5;background:var(--term);border:1px solid var(--line);padding:14px;overflow-x:auto;white-space:pre}
+code{font-family:var(--m);font-size:.85em}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;align-items:start}
+.pair > div{min-width:0;display:flex;flex-direction:column;gap:8px}
+.cards{display:flex;flex-direction:column;border:1px solid var(--line)}
+.a{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:16px;padding:14px;border-top:1px solid var(--line)}
+.a:first-child{border-top:0}
+.a > div{min-width:0;display:flex;flex-direction:column;gap:4px}
+.lbl{font-size:.8rem;color:var(--muted)}
+.done{opacity:.6}
+@media (max-width:720px){.a{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:10px">
+  <h1>Studio 201 mods</h1>
+  <p>Design pass 1, revision 2. Everything lives in one pane docked on the right side of the terminal, like your current Claude Monitor. Nothing sits above or below the prompt. Grayscale on purpose: pass 2 picks color.</p>
+  <p class="note">Updated 2026-11-19. Times are Pacific. Numbers are examples. Covers spec claims C4 to C12.</p>
+</header>
+
+<section>
+  <h2>1. The pane, normal state</h2>
+  <div class="pair">
+<pre>
+ Studio 201       ×
+ transit-app
+ Opus 5.5
+ Board ↗
+
+── Session ────────
+ 1h 35m
+ 182k tokens
+ $5.04
+
+── Context ────────
+ ██░░░░░░░░ 20%
+ 200k / 1M
+
+── Usage ──────────
+ 5h ░░░░░░░░  3%
+    resets 5:57 PM
+    on pace: ok
+
+ 7d ███░░░░░ 32%
+    resets Mon Nov 24
+    2:00 PM
+    on pace: ok
+
+── Policy ─────────
+ on
+ main    Opus
+ agents  Sonnet
+         Haiku
+
+ opus    83.4k
+ sonnet  24.2k
+ haiku    3.1k
+
+── Agents ─────────
+ 3 running
+
+ ▸ Coder
+   #16 alert email
+   Sonnet
+   2m 02s · 88k
+
+ ▸ QA runner
+   C4 settings r2
+   Sonnet
+   3m 10s · 41k
+
+ ▸ Scout
+   find feed parser
+   Haiku
+   12s · 4k
+
+ 4 finished ›
+</pre>
+    <div>
+      <p><b>Width.</b> About 20 columns, down from 35. Every value gets its own line, because you have height to spare and width is what the chat needs.</p>
+      <p><b>Header.</b> Product, main model, and "Board ↗", which opens that product's GitHub board in the browser.</p>
+      <p><b>Session.</b> Time, tokens, cost.</p>
+      <p><b>Context.</b> Bar, percent, used of total.</p>
+      <p><b>Usage.</b> Reset times are actual Pacific times, not countdowns, so you can plan around them. Each window gets its own forecast line.</p>
+      <p><b>Policy.</b> Whether it's on, which models play which role, tokens by model.</p>
+      <p><b>Agents.</b> Running only. Finished agents collapse into one line.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>2. Forecast warns</h2>
+  <div class="pair">
+<pre>
+── Usage ──────────
+ 5h ███░░░░░ 41%
+    resets 5:57 PM
+    on pace: ok
+
+ 7d ███████░ 82%
+    resets Mon Nov 24
+    2:00 PM
+    on pace to hit
+    limit Fri Nov 21
+    6:40 PM PT!
+</pre>
+    <div><p>The forecast line gives the predicted day, date and time, ending in "!". A toast shows once when it first crosses into a warning. Pass 2 decides the color.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>3. Not enough readings</h2>
+<pre>
+── Usage ──────────
+ 5h █░░░░░░░ 12%
+    resets 5:57 PM
+    on pace: needs
+    ~15 min of data
+
+ 7d no reading yet
+</pre>
+</section>
+
+<section>
+  <h2>4. More than 5 running</h2>
+  <div class="pair">
+<pre>
+── Agents ─────────
+ 7 running
+
+ ▸ QA runner
+   C4 settings r2
+   Sonnet
+   3m 10s · 41k
+
+ ▸ Coder
+   #16 alert email
+   Sonnet
+   2m 02s · 88k
+
+ ▸ UI builder
+   #17 empty state
+   Sonnet
+   1m 45s · 63k
+
+ ▸ Reviewer
+   #12 settings
+   Sonnet
+   55s · 22k
+
+ ▸ Scout
+   find feed parser
+   Haiku
+   12s · 4k
+
+ Show 2 more ›
+
+ 12 finished ›
+</pre>
+    <div><p>Top 5 by run time, longest first, so a stuck agent rises to the top. The rest sit behind "Show 2 more".</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>5. Finished list opened</h2>
+  <div class="pair">
+<pre>
+ 12 finished ⌄
+
+ ✓ Researcher
+   route data sources
+   Sonnet
+   ran 6m · 120k
+
+ ✓ Check writer
+   QA scripts C1-C4
+   Sonnet
+   ran 4m · 52k
+
+ ✓ Mechanic
+   rename feedClient
+   Haiku
+   ran 40s · 9k
+
+ Show 9 more ›
+</pre>
+    <div><p>Opens below the running list and closes again with one click. It stays closed by default every time the pane opens.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>6. Clicking an agent</h2>
+<pre>
+┌ Coder · #16 alert email · Sonnet · 2m 02s ─────────────────┐┌ Studio 201     × ┐
+│ Read src/alerts/email.ts                                    ││ ‹ Back to main   │
+│ Edit src/alerts/email.ts  +24 -3                            ││ ...              │
+│ Bash pnpm typecheck  ok                                     ││ ── Agents ────── │
+│ ...                                                         ││ ● Coder          │
+│                                                             ││   #16 alert email│
+└─────────────────────────────────────────────────────────────┘└──────────────────┘
+</pre>
+  <p class="note">The chat area shows that agent's full transcript. The pane marks the agent you're viewing and puts "Back to main" at the top.</p>
+</section>
+
+<section>
+  <h2>7. Narrow terminal</h2>
+  <p>Below about 144 columns, Claude Code won't dock a pane on its own. <code>/studio</code> opens it at any width, and × closes it. At your usual 263 columns it opens with the session.</p>
+</section>
+
+<section>
+  <h2>Assumptions</h2>
+  <p>Updated for the side pane. A4 and A8 changed. The rest still need your answer.</p>
+  <div class="cards">
+    <div class="a"><div><span class="lbl">A1 · Forecast method</span><b>Straight-line projection from recent pace: last 30 minutes for 5h, last 24 hours for 7d.</b></div><div><span class="lbl">For</span>Reacts quickly when you speed up.</div><div><span class="lbl">Against</span>A burst of heavy work can give a false warning. Average pace since the window opened is calmer but slower.</div></div>
+    <div class="a"><div><span class="lbl">A2 · Readings</span><b>The percent is account-wide, but readings are only taken while a session runs here.</b></div><div><span class="lbl">For</span>No background process.</div><div><span class="lbl">Against</span>Usage elsewhere shows in the percent, not in the pace, until the next reading.</div></div>
+    <div class="a"><div><span class="lbl">A3 · Dollar cost</span><b>I show the engine's cost estimate.</b></div><div><span class="lbl">For</span>Comparable across sessions. Your current monitor shows it too.</div><div><span class="lbl">Against</span>On a subscription it isn't what you pay.</div></div>
+    <div class="a"><div><span class="lbl">A4 · One pane (changed)</span><b>All mods live in one docked pane. Nothing above or below the prompt.</b></div><div><span class="lbl">For</span>What you asked for. The prompt area stays clean.</div><div><span class="lbl">Against</span>Takes about 20 columns from the chat. Every value on its own line, so with many agents the pane scrolls.</div></div>
+    <div class="a"><div><span class="lbl">A5 · Pacific time</span><b>All times in Pacific, with real times instead of countdowns.</b></div><div><span class="lbl">For</span>What you asked for. Easier to plan around.</div><div><span class="lbl">Against</span>Your current monitor shows "resets 1h 57m". Countdowns are quicker to read for the 5h window. We could show both for 5h.</div></div>
+    <div class="a"><div><span class="lbl">A6 · Run time</span><b>The mod records when agents finish, since the engine gives the start time only.</b></div><div><span class="lbl">For</span>Gives "ran 6m".</div><div><span class="lbl">Against</span>Agents that finished before the mod loaded show no run time.</div></div>
+    <div class="a"><div><span class="lbl">A7 · Command name</span><b><code>/studio</code> opens the pane. (<code>/agents</code> is built in.)</b></div><div><span class="lbl">For</span>One command for the whole pane.</div><div><span class="lbl">Against</span>None found.</div></div>
+    <div class="a"><div><span class="lbl">A8 · Opens with the session (changed)</span><b>On wide terminals, the pane opens when the session starts and stays open.</b></div><div><span class="lbl">For</span>Same as your monitor today.</div><div><span class="lbl">Against</span>Always uses the space, even when nothing runs.</div></div>
+    <div class="a"><div><span class="lbl">A9 · Board link source</span><b>Each repo stores its board URL in <code>.studio/config.json</code>.</b></div><div><span class="lbl">For</span>No lookup each time.</div><div><span class="lbl">Against</span>One more file per repo.</div></div>
+    <div class="a"><div><span class="lbl">A10 · Order</span><b>Longest running first.</b></div><div><span class="lbl">For</span>A stuck agent rises to the top.</div><div><span class="lbl">Against</span>The newest work sits lower.</div></div>
+    <div class="a"><div><span class="lbl">A11 · Replaces Claude Monitor</span><b>Studio 201 rebuilds this pane from scratch instead of reusing the workbench's monitor code. I keep its layout because it works for you.</b></div><div><span class="lbl">For</span>Keeps the new repo clean, as you asked.</div><div><span class="lbl">Against</span>Rewrites working code. Both monitors shouldn't run at once, so the old one gets turned off when Studio 201 installs.</div></div>
+  </div>
+</section>
+
+</div>

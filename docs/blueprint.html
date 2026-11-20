@@ -1,0 +1,386 @@
+<title>Studio 201</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Design pass 1: wireframe. Grayscale, system font, no decoration. Pass 2 adds color, type and taste. */
+:root{--bg:#FFFFFF;--fg:#151515;--muted:#666666;--line:#D0D0D0;--fill:#F3F3F3;--strong:#151515;
+  --f:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--m:ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161616;--fg:#EDEDED;--muted:#A0A0A0;--line:#3A3A3A;--fill:#202020;--strong:#EDEDED;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161616;--fg:#EDEDED;--muted:#A0A0A0;--line:#3A3A3A;--fill:#202020;--strong:#EDEDED;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 var(--f);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:980px;margin:0 auto;padding-block:32px 72px;display:flex;flex-direction:column;gap:44px}
+h1{font-size:1.9rem;margin:0;line-height:1.2}
+h2{font-size:1.3rem;margin:0;line-height:1.3}
+h3{font-size:1rem;margin:0}
+p{margin:0;max-width:70ch}
+section{display:flex;flex-direction:column;gap:14px}
+a{color:var(--fg)}
+code,pre{font-family:var(--m);font-size:.85em}
+pre{margin:0;background:var(--fill);border:1px solid var(--line);padding:12px;overflow-x:auto}
+.note{color:var(--muted);font-size:.9rem}
+.box{border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+ul,ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
+.t{overflow-x:auto;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:640px;font-size:.9rem}
+th,td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}
+thead th{border-top:0;background:var(--fill);font-weight:600}
+td:first-child{white-space:nowrap}
+td.path{font-family:var(--m);font-size:.82rem}
+tr.dir td{background:var(--fill);font-weight:600}
+.mermaid{background:var(--bg);border:1px solid var(--line);padding:12px;overflow-x:auto;margin:0}
+.board{display:grid;grid-template-columns:repeat(9,minmax(150px,1fr));gap:8px;overflow-x:auto;padding-bottom:6px}
+.col{border:1px solid var(--line);background:var(--fill);padding:8px;display:flex;flex-direction:column;gap:6px;min-height:150px}
+.col h3{font-size:.85rem}
+.col.you{border:2px solid var(--strong)}
+.card{background:var(--bg);border:1px solid var(--line);padding:6px 8px;font-size:.8rem;line-height:1.4}
+.card span{display:block;color:var(--muted)}
+.done{display:flex;flex-direction:column;gap:0;border:1px solid var(--line)}
+.done div{padding:8px 12px;border-top:1px solid var(--line)}
+.done div:first-child{border-top:0}
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:10px">
+  <h1>Studio 201 blueprint</h1>
+  <p>A new repo, separate from claude-workbench. You manage, Opus 5.5 orchestrates, and agents work like a software team on a GitHub board. Terminal first. This is design pass 1: content and layout only, in grayscale on purpose. You or a human designer add color, type and taste in pass 2.</p>
+  <p class="note">Updated 2026-11-19.</p>
+</header>
+
+<section>
+  <h2>Decided</h2>
+  <div class="done">
+    <div><b>Main session:</b> Opus 5.5. Fable 5.2 or Codex give a second opinion when you ask.</div>
+    <div><b>Plans:</b> an HTML page for you, with markdown source in the repo for agents.</div>
+    <div><b>Tools:</b> build on existing tools, vendor the parts we want, and write our own in a fresh repo.</div>
+    <div><b>Tracking:</b> GitHub Issues and Projects are the default kanban. Agents move cards and you watch.</div>
+    <div><b>Proof:</b> QA evidence first. Automated tests only when they have a stated reason.</div>
+    <div><b>Review + QA:</b> one loop. Findings become issues, get fixed, and are re-checked.</div>
+    <div><b>Start with:</b> this blueprint, then a design pass, then build.</div>
+    <div><b>Name:</b> Studio 201.</div>
+    <div><b>Design pass 2:</b> you or a human designer.</div>
+    <div><b>GitHub identity:</b> agents act as you and write in first person, as you. The board's Agent field records which agent did the work, for you only.</div>
+    <div><b>Boards:</b> one Project per product.</div>
+    <div><b>Interface:</b> terminal first, with our own mods for the board, agents and approvals.</div>
+    <div><b>References:</b> no Mobbin. Design references are screenshots you drop in a folder or URLs you name.</div>
+    <div><b>Repo visibility:</b> never assumed. Every new app asks public or private. Studio 201 itself is public.</div>
+    <div><b>Design timing:</b> pass 1 (grayscale screens and architecture) gets a walkthrough and your approval, then v1 is built on it. Pass 2 (final design, by you or a designer) lands at the end, before the public 1.0 release.</div>
+    <div><b>Web default:</b> Tailwind and shadcn/ui, unless a project says otherwise.</div>
+    <div><b>Assumptions:</b> every conceptual decision or major assumption an agent makes gets logged with its framing, pros and cons, so you can agree or argue.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Branches, PRs and versions</h2>
+<pre class="mermaid">
+gitGraph
+  commit id: "main"
+  branch feature/alerts
+  branch issue/16-alert-email
+  commit id: "work"
+  commit id: "fix"
+  checkout feature/alerts
+  merge issue/16-alert-email id: "squash #16"
+  branch issue/17-empty-state
+  commit id: "work "
+  checkout feature/alerts
+  merge issue/17-empty-state id: "squash #17"
+  checkout main
+  merge feature/alerts id: "squash: alerts (v0.3.0)"
+</pre>
+  <div class="t"><table>
+    <thead><tr><th>Step</th><th>Rule</th></tr></thead>
+    <tbody>
+      <tr><td>Feature branch</td><td><code>feature/&lt;name&gt;</code>, cut from main, one per feature.</td></tr>
+      <tr><td>Issue branches</td><td><code>issue/&lt;number&gt;-&lt;name&gt;</code>, one per issue, each in its own worktree. They can't live under <code>feature/&lt;name&gt;/</code> because git refuses a branch nested inside another branch's name.</td></tr>
+      <tr><td>Issue PRs</td><td>Into the feature branch. Squash merged after the Review + QA loop passes. Agents merge these, and small related issues can share one PR.</td></tr>
+      <tr><td>Keeping current</td><td>Main merges into the feature branch whenever main moves, so the final merge has no surprises.</td></tr>
+      <tr><td>Feature PR</td><td>Feature branch into main, squash merged, so main gets one commit per feature. Only you approve it.</td></tr>
+      <tr><td>Enforcement</td><td>Agents act as your GitHub account, and GitHub won't let you approve your own PR, so GitHub can't enforce your approval. A hook blocks any agent from merging into main, and only your <code>/approve</code> merges it.</td></tr>
+      <tr><td>Versions</td><td>Semantic versioning, <code>major.minor.patch</code>. A feature bumps minor, a fix bumps patch. 0.x until design pass 2, then 1.0 is the public release. One GitHub milestone per version.</td></tr>
+      <tr><td>Feature flags</td><td>Off by default. Feature branches already keep unfinished work out of main. Use a flag only when a feature has to ship dark, such as a staged web rollout.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Team</h2>
+<pre class="mermaid">
+flowchart TB
+  you["You: approve spec, plan, merge"] --> orch["Orchestrator: Opus 5.5<br/>plans, writes briefs, moves the board"]
+  orch -.-> second["Second opinion: Fable 5.2 or Codex"]
+  orch <-.-> gh[("GitHub: issues, Project board, PRs")]
+  orch --> read
+  orch --> write
+  subgraph read["Read only, run in parallel"]
+    scout["Scout · Haiku"]
+    researcher["Researcher · Sonnet"]
+    reviewer["Reviewer · Sonnet"]
+    critic["Design critic · Sonnet"]
+    qa["QA runner · Sonnet"]
+  end
+  subgraph write["Write, one per task, own worktree"]
+    checks["Check writer · Sonnet"]
+    coder["Coder · Sonnet"]
+    ui["UI builder · Sonnet"]
+    docs["Docs + PR writer · Sonnet"]
+    mech["Mechanic · Haiku"]
+  end
+</pre>
+</section>
+
+<section>
+  <h2>Flow</h2>
+<pre class="mermaid">
+flowchart LR
+  A[Research] --> B{{"Spec<br/>you approve"}}
+  B --> C{{"Visual plan<br/>you decide"}}
+  C --> D[QA plan from spec]
+  D --> E[Build]
+  E --> F[Review + QA]
+  F -- "finding: new issue" --> E
+  F -- "round 3 still open" --> Y{{"You"}}
+  F -- clean --> G{{"Receipt PR<br/>you merge"}}
+  G --> H[Compound: mistakes become checks]
+</pre>
+  <p class="note">Small tasks skip research, spec and plan, and run Build, one Review + QA round, then the PR.</p>
+</section>
+
+<section>
+  <h2>GitHub board</h2>
+  <p>One Project per product. Every claim and every finding is an issue on it. Hooks move cards when an agent starts or finishes, so the board stays accurate without relying on the agent to remember. Bold columns wait on you.</p>
+  <div class="board">
+    <div class="col"><h3>Backlog</h3><div class="card">#20 Export to CSV<span>idea</span></div></div>
+    <div class="col"><h3>Scoping</h3><div class="card">#18 Offline mode<span>Researcher</span></div></div>
+    <div class="col you"><h3>Spec review</h3><div class="card">#15 Route alerts<span>waiting on you</span></div></div>
+    <div class="col"><h3>Ready</h3><div class="card">#16 C1 alert sign-up<span>unassigned</span></div></div>
+    <div class="col"><h3>In progress</h3><div class="card">#16 C2 alert email<span>Coder · Sonnet</span></div><div class="card">#17 C3 empty state<span>UI builder · Sonnet</span></div></div>
+    <div class="col"><h3>Checking</h3><div class="card">#12 C4 settings page<span>QA runner · round 1</span></div></div>
+    <div class="col"><h3>Needs fix</h3><div class="card">#41 Toggle unreadable in dark<span>found by QA · links C4</span></div></div>
+    <div class="col you"><h3>Merge review</h3><div class="card">PR #40 Settings<span>receipt: 6 of 6 claims</span></div></div>
+    <div class="col"><h3>Done</h3><div class="card">#9 Login<span>merged</span></div></div>
+  </div>
+  <div class="t"><table>
+    <thead><tr><th>Board part</th><th>What it holds</th></tr></thead>
+    <tbody>
+      <tr><td>Feature issue</td><td>The spec. Its claims are sub-issues, so it shows "4 of 7 done".</td></tr>
+      <tr><td>Finding issue</td><td>A QA or review finding, with repro steps and a screenshot, linked to the claim it breaks.</td></tr>
+      <tr><td>Fields</td><td>Status, Agent, Model, Claim ID, Round, Size, Platform.</td></tr>
+      <tr><td>Views</td><td>Board for you, a table of open findings, and a list of what each agent is doing.</td></tr>
+      <tr><td>Built-in automations</td><td>New issues auto-add to the board. A merged PR moves its issues to Done.</td></tr>
+      <tr><td>Milestones</td><td>One per release.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Repo layout</h2>
+  <p>The repo is a Claude Code plugin marketplace, so one command installs it. <code>AGENTS.md</code> holds the shared rules so Codex follows them too.</p>
+  <div class="t"><table>
+    <thead><tr><th>Path</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr class="dir"><td class="path">studio-201/</td><td>Repo root</td></tr>
+      <tr><td class="path">README.md</td><td>What Studio 201 is, how to install, a picture of the board.</td></tr>
+      <tr><td class="path">AGENTS.md</td><td>Rules every model follows: writing style, git, model roles, and writing on GitHub in first person as you. Codex reads this file directly.</td></tr>
+      <tr><td class="path">CLAUDE.md</td><td>Imports AGENTS.md and adds the Claude-only parts.</td></tr>
+      <tr><td class="path">install.sh</td><td>Adds the marketplace, installs mods, links AGENTS.md for Codex.</td></tr>
+      <tr><td class="path">.claude-plugin/marketplace.json</td><td>Lists the studio plugin so <code>/plugin marketplace add</code> works.</td></tr>
+      <tr class="dir"><td class="path">agents/</td><td>One file per team role, each with a pinned model and a tool allowlist</td></tr>
+      <tr><td class="path">scout.md</td><td>Haiku. Finds files, reads docs, runs commands, reports facts.</td></tr>
+      <tr><td class="path">researcher.md</td><td>Sonnet. Reads code and the web, writes research.md.</td></tr>
+      <tr><td class="path">reviewer.md</td><td>Sonnet. Checks every claim has evidence, then quality. A finding needs a repro.</td></tr>
+      <tr><td class="path">design-critic.md</td><td>Sonnet. Looks at screenshots, runs the slop detector, files findings.</td></tr>
+      <tr><td class="path">qa-runner.md</td><td>Sonnet. Runs the real app or data, saves evidence, closes issues.</td></tr>
+      <tr><td class="path">check-writer.md</td><td>Sonnet. Writes QA scripts from the spec before code, and tests only when flagged.</td></tr>
+      <tr><td class="path">coder.md</td><td>Sonnet. Implements one issue in its own worktree. Can't edit spec or checks.</td></tr>
+      <tr><td class="path">ui-builder.md</td><td>Sonnet. Builds UI from DESIGN.md with the platform design skill loaded.</td></tr>
+      <tr><td class="path">writer.md</td><td>Sonnet. READMEs, docs, changelogs and receipt PRs.</td></tr>
+      <tr><td class="path">mechanic.md</td><td>Haiku. Renames, imports, formatting. No judgment calls.</td></tr>
+      <tr class="dir"><td class="path">skills/</td><td>How-to instructions, loaded only when needed</td></tr>
+      <tr><td class="path">orchestrate/</td><td>The router. Sizes the task, picks the flow, decides which agents run.</td></tr>
+      <tr><td class="path">brief/</td><td>The contract every agent reads first, plus the brief template.</td></tr>
+      <tr><td class="path">spec/</td><td>Writes spec.md as numbered claims, each tied to your words.</td></tr>
+      <tr><td class="path">visual-plan/</td><td>Turns plan.md into the HTML plan page with diagrams and decision cards.</td></tr>
+      <tr><td class="path">board/</td><td>Creates issues and sub-issues, sets fields, moves cards with <code>gh</code>.</td></tr>
+      <tr><td class="path">qa-loop/</td><td>Runs Review + QA, files findings, re-checks fixes, stops at round 3.</td></tr>
+      <tr><td class="path">qa-evidence/</td><td>Per-platform guides: web, apple, windows, python-data, r-data.</td></tr>
+      <tr><td class="path">when-to-test/</td><td>The four reasons a claim gets an automated test, and nothing else.</td></tr>
+      <tr><td class="path">design-direction/</td><td>Writes DESIGN.md: mode, tokens, type, and reference screens from <code>refs/</code> or URLs you name.</td></tr>
+      <tr><td class="path">type-and-color/</td><td>Font pairing, palette building in OKLCH, contrast targets, what to refuse. Ships a contrast script.</td></tr>
+      <tr><td class="path">design-critique/</td><td>Screenshot, detector, rule list, ranked findings.</td></tr>
+      <tr><td class="path">web-ui/</td><td>Web craft rules for React, Next and Tailwind, built from the vendored sources.</td></tr>
+      <tr><td class="path">apple-ui/</td><td>SwiftUI and macOS rules: system patterns, Dynamic Type, Liquid Glass.</td></tr>
+      <tr><td class="path">windows-ui/</td><td>WinUI and Fluent rules. We write this one since no good public one exists.</td></tr>
+      <tr><td class="path">receipt-pr/</td><td>PR body listing each claim, its proof and evidence link.</td></tr>
+      <tr><td class="path">readme/</td><td>Fixed README order for open-source repos.</td></tr>
+      <tr><td class="path">plain-writing/</td><td>Unslop plus length rules for replies and copy.</td></tr>
+      <tr><td class="path">assumptions/</td><td>Makes every agent name its conceptual decisions and assumptions, with framing, pros and cons. Plan pages show them as cards and receipt PRs list new ones.</td></tr>
+      <tr><td class="path">git-flow/</td><td>Feature branch, issue branches, squash merges, version bumps, milestones.</td></tr>
+      <tr><td class="path">compound/</td><td>Turns a repeated mistake into a lint, hook or check.</td></tr>
+      <tr><td class="path">second-opinion/</td><td>Sends a plan or diff to Codex or Fable and reports where they disagree.</td></tr>
+      <tr class="dir"><td class="path">hooks/</td><td>Rules that run automatically instead of relying on memory</td></tr>
+      <tr><td class="path">hooks.json</td><td>Wires the scripts below to Claude Code events.</td></tr>
+      <tr><td class="path">lock-checks.sh</td><td>Blocks the coder from editing spec.md, QA scripts and tests.</td></tr>
+      <tr><td class="path">ui-detect.sh</td><td>Runs the slop detector after a UI file is edited.</td></tr>
+      <tr><td class="path">contrast-check.sh</td><td>Checks every text and background token pair in both themes and fails on low contrast.</td></tr>
+      <tr><td class="path">reload.sh</td><td>Reloads the router skill after compaction so skills keep triggering.</td></tr>
+      <tr><td class="path">no-done-without-evidence.sh</td><td>Stops "done" until the evidence files exist. Gives up after 3 tries.</td></tr>
+      <tr class="dir"><td class="path">mods/</td><td>Terminal interface changes and the rules that need code. Details in the Mods section.</td></tr>
+      <tr><td class="path">board/</td><td>Pane with the GitHub board, plus <code>/board</code>.</td></tr>
+      <tr><td class="path">inbox/</td><td>Row above the prompt listing what waits on you, plus <code>/approve</code> and <code>/decide</code>.</td></tr>
+      <tr><td class="path">crew/</td><td>Pane and status line for running agents, with stall warnings.</td></tr>
+      <tr><td class="path">model-policy/</td><td>Keeps Opus orchestrating and agents on their pinned models.</td></tr>
+      <tr><td class="path">voice/</td><td>Checks every GitHub write sounds like you, and that replies stay short.</td></tr>
+      <tr><td class="path">evidence/</td><td>Shows QA evidence under the tool call that made it, plus <code>/evidence</code>.</td></tr>
+      <tr class="dir"><td class="path">refs/</td><td>Per project: screenshots you drop in as design references</td></tr>
+      <tr class="dir"><td class="path">templates/</td><td>Files copied into each project</td></tr>
+      <tr><td class="path">spec.md, plan.md, DESIGN.md</td><td>Starting skeletons.</td></tr>
+      <tr><td class="path">plan.html</td><td>The plan page layout.</td></tr>
+      <tr><td class="path">.github/ISSUE_TEMPLATE/</td><td>Forms for feature, claim and finding issues.</td></tr>
+      <tr class="dir"><td class="path">scripts/</td><td>One-off setup</td></tr>
+      <tr><td class="path">new-project.sh</td><td>Creates the Project, its fields, views, labels and issue templates in a repo.</td></tr>
+      <tr class="dir"><td class="path">vendor/</td><td>Third-party skills, copied</td></tr>
+      <tr><td class="path">SOURCES.md</td><td>Where each file came from, its commit and license.</td></tr>
+      <tr class="dir"><td class="path">docs/</td><td>About studio itself</td></tr>
+      <tr><td class="path">blueprint.html</td><td>This page.</td></tr>
+      <tr><td class="path">decisions.md</td><td>Every decision and assumption: framing, options, pros and cons, and whether you agreed.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Mods</h2>
+  <p>You work in the terminal, so the mods bring the board, the agents and your approvals into it. In a terminal, a mod can draw a pane beside the chat (when the window is about 144 columns or wider, or when you open it), a row above the prompt, a status line, toasts, extra lines under a tool call, and slash commands. It can also block or rewrite tool calls, run <code>gh</code> on a timer, and add to the system prompt. Rules that need code live in mods instead of shell hooks.</p>
+<pre>┌ chat ───────────────────────────────────┐┌ board · transit-app ────────┐
+│ ● Coder fixed #41, QA re-checking       ││ In progress   2             │
+│   Bash  npx playwright test qa/C4       ││  #16 C2 alert email  Coder  │
+│   └ evidence: qa/C4/dark.png  pass      ││  #17 C3 empty state  UI     │
+│                                         ││ Checking      1             │
+│                                         ││  #12 C4 settings     QA r2  │
+│                                         ││ Needs fix     0             │
+│                                         ││ Waiting on you 2            │
+├─────────────────────────────────────────┤│  #15 spec  · PR #40 merge   │
+│ 2 waiting on you: #15 spec, PR #40      │└─────────────────────────────┘
+│ > /approve 15                           │
+└ Opus · 3 agents · coder 2m · qa 40s ────┘</pre>
+  <p class="note">Wireframe of a terminal session: chat on the left, board pane on the right, inbox row above the prompt, crew status line at the bottom.</p>
+  <div class="t"><table>
+    <thead><tr><th>Mod</th><th>What you see or get</th><th>How it works</th></tr></thead>
+    <tbody>
+      <tr><td>board</td><td>A pane with the current product's columns and cards. <code>/board</code> opens it. A toast when a card moves into a column that waits on you.</td><td>Reads the Project with <code>gh</code> on a timer. Moves cards itself when an agent starts or finishes, and records Agent and Round.</td></tr>
+      <tr><td>inbox</td><td>A row above the prompt: "2 waiting on you". <code>/approve 15</code>, <code>/decide 15</code> to open the plan page, <code>/reject 15 reason</code>.</td><td>Your commands move the card and post your comment on the issue.</td></tr>
+      <tr><td>crew</td><td>Status line with running agents and their time since last output. A <code>/crew</code> pane lists each agent, model, issue and round.</td><td>Follows agent start and stop events. Warns when one is silent too long.</td></tr>
+      <tr><td>model-policy</td><td>Nothing, unless the main session tries to write code itself.</td><td>Blocks code edits in the main session and pins each agent to its model.</td></tr>
+      <tr><td>voice</td><td>Nothing, unless something would go out sounding wrong.</td><td>Checks every <code>gh</code> issue, comment and PR for first person as you, no AI mention and no banned phrases. Adds the reply-length rules to the system prompt.</td></tr>
+      <tr><td>evidence</td><td>Under each QA tool call: the screenshot path and pass or fail. <code>/evidence C4</code> lists one claim's evidence.</td><td>Watches QA runs and indexes files under <code>qa/</code> by claim ID.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Later, after design pass 2: a Studio 201 terminal theme.</p>
+
+  <h2>Outside tools</h2>
+  <div class="box">
+    <ul>
+      <li><b>gh CLI.</b> Issues, Projects, PRs. Needs <code>gh auth refresh -s project</code>.</li>
+      <li><b>Playwright.</b> Web QA, and screenshots of reference sites you name.</li>
+      <li><b>Impeccable CLI.</b> Only <code>detect</code>, not live mode.</li>
+      <li><b>Codex.</b> Second opinion via <code>codex exec</code> or its MCP server.</li>
+      <li><b>Vercel MCP.</b> Already connected. QA runs against preview deploys.</li>
+      <li><b>Microsoft win-dev-skills.</b> To evaluate before use.</li>
+    </ul>
+  </div>
+  <p class="note">We install no whole third-party plugins. Each brings its own triggers, and they clash with each other.</p>
+</section>
+
+<section>
+  <h2>Web UI design tools</h2>
+  <p>The first version of this page used tiny all-caps labels above every heading, a blueprint-blue theme and decorative grid lines. Our own tell list flags all three. Nothing checked it, and that is the gap these tools close.</p>
+  <div class="t"><table>
+    <thead><tr><th>Tool</th><th>Job</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td>refs/ folder</td><td>Screenshots you collect, or URLs Playwright captures, of products you like.</td><td>Before design</td></tr>
+      <tr><td>DESIGN.md</td><td>Mode, color tokens, type roles, what to refuse.</td><td>Before design</td></tr>
+      <tr><td>You or a human designer</td><td>Design pass 2: final color, type and taste, written back into DESIGN.md as tokens agents follow.</td><td>Design pass 2</td></tr>
+      <tr><td>Anthropic frontend-design</td><td>Plan the direction, then check it against the generic default.</td><td>Building</td></tr>
+      <tr><td>Impeccable craft floor + detector</td><td>List of things to refuse, and a mechanical check for them.</td><td>Building, hook</td></tr>
+      <tr><td>Emil Kowalski cheatsheet + learn-taste</td><td>Detail and motion. Your corrections become rules.</td><td>Polish</td></tr>
+      <tr><td>Vercel Web Interface Guidelines</td><td>Accessibility, focus, forms, motion.</td><td>Review</td></tr>
+      <tr><td>Tailwind + shadcn/ui</td><td>The default for every web project. Tokens from DESIGN.md become Tailwind theme variables.</td><td>Building</td></tr>
+      <tr><td>Playwright screenshots</td><td>Light, dark, phone and desktop, for the critic and for you.</td><td>Review + QA</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Type and color</h2>
+  <p>Fonts and color give away generated UI faster than anything else. Both get rules the agent must follow and a script that checks the result.</p>
+  <div class="cols">
+    <div class="box">
+      <h3>Type</h3>
+      <ul>
+        <li>Pick fonts from the subject and mode in DESIGN.md, never by habit. Inter, Space Grotesk, and serif-plus-cream are refused unless the brief asks for them.</li>
+        <li>Two families at most: a display face used sparingly and a body face. Add a mono only for data or code.</li>
+        <li>Pair by contrast in structure, such as a geometric sans with a humanist sans, not two faces that look alike.</li>
+        <li>A fixed type scale (for example 1.25 ratio), 3 or 4 weights at most, body 16px or larger, 65ch line length.</li>
+        <li>Native apps use the system font: SF Pro on Apple, Segoe UI Variable on Windows. Custom faces only for brand moments.</li>
+        <li>Tabular numbers in tables, balanced headings, slight negative tracking on large headings only.</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>Color</h3>
+      <ul>
+        <li>Build palettes in OKLCH so equal steps look equal. A 10-step scale for neutrals and for the accent.</li>
+        <li>Tint neutrals slightly toward the accent hue. Pure gray reads as unconsidered.</li>
+        <li>One accent, used for action and focus. Most of the screen is neutral.</li>
+        <li>Success, warning and error are separate from the accent and always paired with text or an icon, never color alone.</li>
+        <li>Dark mode is designed, not inverted: lift surfaces with lighter grays instead of shadows, and lower saturation.</li>
+        <li>Refuse: purple-blue gradients, neon on black, gray text on colored backgrounds, more than one saturated hue competing.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="t"><table>
+    <thead><tr><th>Contrast check</th><th>Minimum</th><th>Applies to</th></tr></thead>
+    <tbody>
+      <tr><td>Body text</td><td>4.5:1 (WCAG AA), aim for 7:1</td><td>Paragraphs, labels, inputs</td></tr>
+      <tr><td>Large text</td><td>3:1</td><td>24px+, or 19px+ bold</td></tr>
+      <tr><td>UI parts</td><td>3:1</td><td>Borders of inputs, focus rings, icons that carry meaning</td></tr>
+      <tr><td>Too much contrast</td><td>Avoid pure #000 on #FFF for long reading</td><td>Causes glare. Use a near-black and an off-white.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="t"><table>
+    <thead><tr><th>Tool</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td>Radix Colors</td><td>Ready-made 12-step scales where each step has a stated job and contrast is designed in.</td></tr>
+      <tr><td>Adobe Leonardo</td><td>Generates a palette from target contrast ratios instead of picked hex codes.</td></tr>
+      <tr><td>Tailwind v4 OKLCH palette</td><td>Default scales already in OKLCH. A starting point, then tinted to the project.</td></tr>
+      <tr><td>APCA</td><td>A newer contrast method that handles dark mode and font weight better. Reported next to WCAG.</td></tr>
+      <tr><td>dataviz skill</td><td>Already installed. Its color validator script covers chart palettes.</td></tr>
+      <tr><td>contrast-check.sh</td><td>Ours. Reads the tokens from DESIGN.md and fails the build on any pair below the minimums.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Proof per platform</h2>
+  <div class="t"><table>
+    <thead><tr><th>Platform</th><th>QA driver</th><th>Evidence</th><th>Tests only when earned</th></tr></thead>
+    <tbody>
+      <tr><td>Web</td><td>Playwright on a Vercel preview</td><td>Screenshots, trace, clean console</td><td>fast-check, schema checks</td></tr>
+      <tr><td>macOS / iOS</td><td>XCUITest</td><td>Screenshots, device checklist</td><td>Swift Testing</td></tr>
+      <tr><td>Windows</td><td>FlaUI</td><td>Recording, manual checklist</td><td>xUnit</td></tr>
+      <tr><td>Python data</td><td>Run on a real sample</td><td>pandera report, reconciliation, idempotent re-run</td><td>Hypothesis</td></tr>
+      <tr><td>R data</td><td>targets run on a real sample</td><td>pointblank report, reconciliation</td><td>testthat</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>Still open</h2>
+  <div class="done">
+    <div><b>Saved QA scripts in CI.</b> Recommended: before releases, plus PRs that touch the same screens.</div>
+    <div><b>Repo visibility.</b> Public from the start, or private until it works.</div>
+    <div><b>First build slice.</b> Recommended: repo skeleton, AGENTS.md, the board and inbox mods, and <code>new-project.sh</code>, tried on one real product.</div>
+  </div>
+</section>
+
+</div>
