@@ -4,6 +4,14 @@ These rules apply to every agent and person who works in this repo.
 
 Studio 201 is for solo developers: new projects, projects they maintain, and contributions to existing projects, with or without prior knowledge of them.
 
+## Delegation
+
+- The orchestrator plans, writes briefs, moves the board and reviews results.
+- Before doing work itself, the orchestrator asks whether the task belongs in a subagent. Code, docs and tests go to agents.
+- The main session writes only notes, plans and temp files. Everything else goes to an agent. Quick lookups may stay in the main session.
+- Read-only roles report changes instead of making them, including through the shell.
+- The policy hook backs this up for the main session's Edit and Write tools and for merges into main. It guards against mistakes, not every possible workaround.
+
 ## Git
 
 - Cut each version's release branch from main as `release/v<x.y.z>`. A fix release is cut from main under its new patch version.

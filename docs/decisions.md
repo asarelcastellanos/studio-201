@@ -161,6 +161,14 @@ Status: default.
 **D38. Small policy defaults.** An agent the policy can't find in the agent list counts as a writing role. `gh pr edit --base main` alone is allowed, and only combined with a merge is it refused. The hook is a guard against mistakes, and the ruleset (D35) is the backstop for main.
 Status: default.
 
+**D39. A light policy instead of the allowlist.** The main session's Edit and Write on any file outside notes, plans and temp dirs are refused, merges and pushes to main are checked by plain string matching, and delegation is a judgment rule in AGENTS.md. Read-only roles keep their tool lists, and shell writes are an instruction, not a check. Replaces D34 and the shell part of D32. Heredoc lines that start with `gh pr merge` or `git push origin main` can be refused, a known false positive.
+Why: checking every way a shell command can write a file or reach main turned into an endless list (PR #28, closed). For personal and open-source use, the orchestrator occasionally doing a small thing itself is fine. The ruleset on main (D35) remains the hard line.
+Gave up: protection against an agent deliberately working around the check.
+Status: agreed.
+
+**D40. D39 replaces D32's shell part, D34, and D38.** The light policy doesn't look up agent roles or check `gh pr edit`, and read-only shell writes are an instruction.
+Status: agreed.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
