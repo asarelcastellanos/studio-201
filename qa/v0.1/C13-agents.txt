@@ -1,0 +1,37 @@
+C13 check: agents/*.md frontmatter on origin/feature/team-policy (f4c248a)
+
+Expected model comes from docs/decisions.md D3 (Sonnet writes and reviews, Haiku does
+lookups and mechanical edits) and the "Who builds what" table in docs/plan/v0.1.md.
+Read-only roles (scout, researcher, reviewer, design-critic, qa-runner) must not list
+Edit or Write.
+
+role           model   expected  read-only  tools                                        Edit/Write  result
+check-writer   sonnet  sonnet    no         Read, Grep, Glob, Bash, Edit, Write          yes         ok
+coder          sonnet  sonnet    no         Read, Grep, Glob, Bash, Edit, Write          yes         ok
+design-critic  sonnet  sonnet    yes        Read, Grep, Glob, Bash                       none        ok
+mechanic       haiku   haiku     no         Read, Grep, Glob, Bash, Edit, Write          yes         ok
+qa-runner      sonnet  sonnet    yes        Read, Grep, Glob, Bash                       none        ok
+researcher     sonnet  sonnet    yes        Read, Grep, Glob, Bash, WebFetch, WebSearch  none        ok
+reviewer       sonnet  sonnet    yes        Read, Grep, Glob, Bash                       none        ok
+scout          haiku   haiku     yes        Read, Grep, Glob, Bash                       none        ok
+ui-builder     sonnet  sonnet    no         Read, Grep, Glob, Bash, Edit, Write          yes         ok
+writer         sonnet  sonnet    no         Read, Grep, Glob, Bash, Edit, Write          yes         ok
+
+10 agent files, 10 with a pinned model and a tools list, 5 read-only roles with no Edit or Write.
+Result for the file check: PASS.
+
+Not covered by this file: the spec's live proof (start each role, check the pane shows
+the model, watch a read-only role's edit get refused). The pane is not built yet. That
+part is "needs owner" at install.
+
+Source lines (grep of "^model:" and "^tools:" in each file):
+check-writer|model: sonnet|tools: Read, Grep, Glob, Bash, Edit, Write
+coder|model: sonnet|tools: Read, Grep, Glob, Bash, Edit, Write
+design-critic|model: sonnet|tools: Read, Grep, Glob, Bash
+mechanic|model: haiku|tools: Read, Grep, Glob, Bash, Edit, Write
+qa-runner|model: sonnet|tools: Read, Grep, Glob, Bash
+researcher|model: sonnet|tools: Read, Grep, Glob, Bash, WebFetch, WebSearch
+reviewer|model: sonnet|tools: Read, Grep, Glob, Bash
+scout|model: haiku|tools: Read, Grep, Glob, Bash
+ui-builder|model: sonnet|tools: Read, Grep, Glob, Bash, Edit, Write
+writer|model: sonnet|tools: Read, Grep, Glob, Bash, Edit, Write
