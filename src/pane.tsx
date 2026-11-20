@@ -15,7 +15,7 @@ export type PaneData = {
 type Ui = Pick<Elements['terminal'], 'Box' | 'Text'>
 
 const BAR_WIDTH = 10
-const NAME_WIDTH = 9
+const NAME_WIDTH = 11
 
 function heading(label: string): string {
 	return `── ${label} ${'─'.repeat(Math.max(2, 16 - label.length))}`
