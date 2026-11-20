@@ -345,6 +345,12 @@ async function mergesMain($: EngineInterface, command: string): Promise<boolean>
 	}
 }
 
+const boardUrl = async ($: EngineInterface): Promise<string | undefined> => {
+	const read = async (path: string): Promise<string | undefined> =>
+		(await $.fs.exists(path)) ? await $.fs.read(path) : undefined
+	return readBoardUrl({ read }, await $.session.cwd())
+}
+
 export const register: Register = on => {
 	on('session.start', async ($, e, next) => {
 		await $.command.register({
@@ -378,11 +384,7 @@ export const register: Register = on => {
 		}
 	}).catch(() => ({ text: 'studio: the command failed.' }))
 
-	on('command.run', { command: BOARD_NAME }, async $ => {
-		const read = async (path: string): Promise<string | undefined> =>
-			(await $.fs.exists(path)) ? await $.fs.read(path) : undefined
-		return { text: (await readBoardUrl({ read }, await $.session.cwd())) ?? NO_BOARD }
-	}).catch(() => ({ text: NO_BOARD }))
+	on('command.run', { command: BOARD_NAME }, async $ => ({ text: (await boardUrl($)) ?? NO_BOARD })).catch(() => ({ text: NO_BOARD }))
 
 	on('turn.complete', async ($, e, next) => {
 		const usage = await $.session.usage()
@@ -403,7 +405,9 @@ export const register: Register = on => {
 		const usage = await $.session.usage({ breakdown: 'summary' })
 		syncTotals(usage.startedAt)
 		const breakdown = usage.context.breakdown
-		return renderPane($.ui.resolve(e), {
+		const ui = $.ui.resolve(e)
+		const board = await boardUrl($).catch(() => undefined)
+		return renderPane(ui, {
 			model: await $.session.model(),
 			policyOn: await read($, policyAtom),
 			byModel: totals,
@@ -415,7 +419,7 @@ export const register: Register = on => {
 				breakdown === undefined
 					? usage.context
 					: { tokens: breakdown.totalTokens, window: breakdown.rawMaxTokens, percent: breakdown.percentage },
-		})
+		}, board === undefined ? undefined : <ui.Link href={board}>Board</ui.Link>)
 	}).catch(($, e) => {
 		const { Text } = $.ui.resolve(e)
 		return <Text>studio: pane failed to draw.</Text>

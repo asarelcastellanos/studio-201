@@ -357,3 +357,10 @@ Status: agreed (owner approved on 2026-11-20).
 Why: the engine delivers rate limits with each response, not on demand.
 Gave up: an exact match with `/usage` between responses.
 Status: agreed (owner approved on 2026-11-20).
+
+## Board link, issue #15
+
+**D81. The pane Board link is a `Link` labelled "Board", and it shows nothing without a board.** The pane reads the URL with the same `readBoardUrl` call as `/board`, on every draw. With no `.studio/config.json` or no board URL, the header slot stays empty. The pane shows no hint and no error. This fills the slot D58 left empty and completes D49.
+Why: `Link` draws an OSC 8 hyperlink on the terminal, and the pane is 20 columns wide, so a dim hint line would crowd the header. `/board` already prints the setup hint.
+Gave up: a hint in the pane for a repo with no board.
+Status: default.
