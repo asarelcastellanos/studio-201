@@ -49,7 +49,7 @@ function windowLines(ui: Ui, view: WindowView): JSX.Element[] {
 		lines.push(<Text key={`${key}-hit-time`}>  {formatClock(pace.at)} PT!</Text>)
 	} else if (pace?.kind === 'fine') {
 		lines.push(<Text key={`${key}-pace`}>on pace: ok</Text>)
-	} else {
+	} else if (pace?.kind === 'not-enough-data') {
 		lines.push(<Text key={`${key}-pace`}>pace: not enough</Text>)
 		lines.push(<Text key={`${key}-data`}>  readings yet</Text>)
 	}

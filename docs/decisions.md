@@ -327,3 +327,8 @@ Status: default.
 Why: the pane is 20 columns wide, and the design page wraps its times the same way.
 Gave up: the zone abbreviation PST or PDT, which "PT" replaces.
 Status: default.
+
+**D78. A change in resetsAt clears that window's readings.** Each stored reading carries the window's `resetsAt`. A new reading clears the window's history only when its `resetsAt` differs from the last stored one. A dip in percent with the same `resetsAt` keeps the history. This replaces D76.
+Why: a 0.1 dip after 24 rising 7d readings wiped the history and dropped the forecast to not-enough-data, while the reset time is the signal the API gives for a new window.
+Gave up: detecting a reset when `resetsAt` is missing. Such readings are appended and never clear the history.
+Status: default.
