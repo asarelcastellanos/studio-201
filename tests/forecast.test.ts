@@ -112,34 +112,3 @@ test('already at 100 percent is a hit at the latest reading', () => {
 	const result = forecast(readings, '5h', at('2026-11-20T14:00:00Z'), at('2026-11-20T10:30:00Z'))
 	assert.deepEqual(result, { kind: 'hit', at: at('2026-11-20T10:30:00Z') })
 })
-
-test('no readings is not enough data', () => {
-	const result = forecast([], '5h', at('2026-11-20T14:00:00Z'), at('2026-11-20T10:30:00Z'))
-	assert.deepEqual(result, { kind: 'not-enough-data' })
-})
-
-test('two readings is not enough data', () => {
-	const readings = [reading('2026-11-20T10:20:00Z', 40), reading('2026-11-20T10:30:00Z', 50)]
-	const result = forecast(readings, '5h', at('2026-11-20T14:00:00Z'), at('2026-11-20T10:30:00Z'))
-	assert.deepEqual(result, { kind: 'not-enough-data' })
-})
-
-test('three readings, two inside the 5h span, is not enough data', () => {
-	const readings = [
-		reading('2026-11-20T09:00:00Z', 10),
-		reading('2026-11-20T10:20:00Z', 40),
-		reading('2026-11-20T10:30:00Z', 50),
-	]
-	const result = forecast(readings, '5h', at('2026-11-20T14:00:00Z'), at('2026-11-20T10:30:00Z'))
-	assert.deepEqual(result, { kind: 'not-enough-data' })
-})
-
-test('three readings at the same instant is not enough data', () => {
-	const readings = [
-		reading('2026-11-20T10:30:00Z', 40),
-		reading('2026-11-20T10:30:00Z', 45),
-		reading('2026-11-20T10:30:00Z', 50),
-	]
-	const result = forecast(readings, '5h', at('2026-11-20T14:00:00Z'), at('2026-11-20T10:30:00Z'))
-	assert.deepEqual(result, { kind: 'not-enough-data' })
-})

@@ -8,9 +8,9 @@ const MINUTE = 60_000
 
 const HOUR = 60 * MINUTE
 
-export const SPAN: Record<Window, number> = { '5h': 30 * MINUTE, '7d': 24 * HOUR }
+const SPAN: Record<Window, number> = { '5h': 30 * MINUTE, '7d': 24 * HOUR }
 
-export const MIN_READINGS = 3
+const MIN_READINGS = 3
 
 export function forecast(readings: readonly Reading[], window: Window, resetAt: number, now: number): Forecast {
 	const recent = readings.filter((r) => r.at >= now - SPAN[window] && r.at <= now)
