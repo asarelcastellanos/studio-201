@@ -1,0 +1,5 @@
+$ bash scripts/new-project.sh (rerun run 1)
+Status is missing options: In review, QA. Left unchanged to keep item statuses.
+Agent is missing options: scout, researcher, reviewer, design-critic, qa-runner, coder, ui-builder, writer, mechanic, owner. Left unchanged to keep item values.
+https://github.com/users/asarelcastellanos/projects/8
+exit=0
