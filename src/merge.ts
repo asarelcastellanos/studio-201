@@ -1,5 +1,5 @@
-import { SHELLS, absolute, invocation, looksLikeRef, movedTo, parse, valueOf } from './policy'
-import type { Invocation } from './policy'
+import { SHELLS, absolute, assignedIn, invocation, looksLikeRef, movedTo, parse, soleAssignments, valueOf } from './policy'
+import type { Invocation, Vars } from './policy'
 
 export const ASK_REASON = 'studio-201: this merges into main. Check the review package above, then approve or decline.'
 
@@ -17,6 +17,8 @@ export type MergeContext = {
 	lookup: (request: Lookup) => string | undefined
 	tracked?: Tracked
 }
+
+const CONTROL_FLAGS = ['--abort', '--quit', '--continue']
 
 const MAIN_REF = /^(?:(?:refs\/)?heads\/)?main$/
 
@@ -129,6 +131,14 @@ function gitPushUpdatesMain(call: Invocation, ctx: MergeContext): boolean {
 	return isMain(currentBranch(ctx, cwd))
 }
 
+function gitMergesMain(call: Invocation, ctx: MergeContext): boolean {
+	const { sub, rest, cwd } = gitCommand(call.args, ctx)
+	if (sub !== 'merge' && sub !== 'pull') return false
+	if (sub === 'merge' && rest.length === 1 && CONTROL_FLAGS.includes(rest[0] ?? '')) return false
+	if (call.viaXargs) return true
+	return isMain(currentBranch(ctx, cwd))
+}
+
 function namesBranch(name: string): boolean {
 	return !/[$`~^@]/.test(name) && name !== '-' && !/^(?:origin|upstream)\//.test(name) && !/^[0-9a-f]{7,40}$/.test(name)
 }
@@ -221,7 +231,7 @@ function commandMerges(call: Invocation, ctx: MergeContext): boolean {
 		return flag >= 0 && mergesIntoMain(args[flag + 1] ?? '', ctx)
 	}
 	if (cmd === 'eval') return args.some(arg => arg.includes('$') || arg.includes('`')) || mergesIntoMain(args.join(' '), ctx)
-	if (cmd === 'git') return gitPushUpdatesMain(call, ctx)
+	if (cmd === 'git') return gitPushUpdatesMain(call, ctx) || gitMergesMain(call, ctx)
 	if (cmd === 'gh' && args[0] === 'pr' && args[1] === 'merge') return ghPrMergesMain(call, args.slice(2), ctx)
 	if (cmd === 'gh' && args[0] === 'api') return ghApiUpdatesMain(call, args.slice(1), ctx)
 	return false
@@ -232,12 +242,15 @@ export function mergesIntoMain(command: string, ctx: MergeContext): boolean {
 	if (nested.some(inner => mergesIntoMain(inner, ctx))) return true
 	let cwd = ctx.cwd
 	let tracked = ctx.tracked
+	const vars: Vars = new Map()
+	const sole = soleAssignments(command)
 	for (const segment of segments) {
 		const here: MergeContext = tracked === undefined ? { ...ctx, cwd } : { ...ctx, cwd, tracked }
 		const call = invocation(segment.words, segment.fed)
 		if (commandMerges(call, here)) return true
 		tracked = switchedTo(call, here) ?? tracked
-		cwd = movedTo(segment.words, here) ?? cwd
+		assignedIn(segment.words, vars, sole)
+		cwd = movedTo(segment.words, here, vars) ?? cwd
 	}
 	return false
 }

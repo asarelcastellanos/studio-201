@@ -35,7 +35,7 @@ import type { Totals } from '../src/usage'
 const NAME = 'studio'
 const BOARD_NAME = 'board'
 const READINGS_KEY = 'readings'
-const LOOKUP_BUDGET_MS = 20000
+const LOOKUP_TIMEOUT_MS = 10000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
 const USAGE = 'Usage: /studio opens the pane, /studio policy [on|off], /studio setup or /studio update'
 const PANE_ID = 'studio-201'
@@ -194,9 +194,13 @@ async function setupCommand($: EngineInterface): Promise<string> {
 	return (await runSetup($)).text
 }
 
+function logLines($: EngineInterface, text: string): void {
+	for (const line of text.split('\n')) if (line.trim() !== '') $.ui.log(line)
+}
+
 function startSetup($: EngineInterface): void {
 	void runSetup($)
-		.then(outcome => (outcome.show ? $.ui.log(outcome.text) : undefined))
+		.then(outcome => (outcome.show ? logLines($, outcome.text) : undefined))
 		.catch(() => undefined)
 }
 
@@ -208,7 +212,7 @@ function updateIo($: EngineInterface): UpdateIo {
 			const record = await $.store.get(SETUP_KEY)
 			return typeof record === 'object' && record !== null && 'status' in record && record.status === 'done'
 		},
-		log: text => $.ui.log(text),
+		log: text => logLines($, text),
 	}
 }
 
@@ -309,8 +313,7 @@ function commandOf(input: unknown): string {
 		: ''
 }
 
-async function resolveLookup($: EngineInterface, request: Lookup, budgetMs: number): Promise<string | undefined> {
-	if (budgetMs <= 0) return undefined
+async function resolveLookup($: EngineInterface, request: Lookup): Promise<string | undefined> {
 	const argv =
 		request.kind === 'branch'
 			? ['git', 'branch', '--show-current']
@@ -326,7 +329,7 @@ async function resolveLookup($: EngineInterface, request: Lookup, budgetMs: numb
 					'.baseRefName',
 				]
 	try {
-		const result = await $.process.run(argv, { cwd: request.cwd, timeoutMs: budgetMs })
+		const result = await $.process.run(argv, { cwd: request.cwd, timeoutMs: LOOKUP_TIMEOUT_MS })
 		const out = result.stdout.trim()
 		return result.exitCode === 0 && out !== '' ? out : undefined
 	} catch {
@@ -334,10 +337,10 @@ async function resolveLookup($: EngineInterface, request: Lookup, budgetMs: numb
 	}
 }
 
-async function mergesMain($: EngineInterface, command: string): Promise<boolean> {
-	const cwd = await $.session.cwd()
+async function mergesMain($: EngineInterface, command: string, agentId: string | undefined): Promise<boolean> {
+	const agentCwd = agentId === undefined ? undefined : (await $.agent.list()).find(agent => agent.id === agentId)?.cwd
+	const cwd = agentCwd ?? (await $.session.cwd())
 	const home = (await $.env.get('HOME')) ?? ''
-	const deadline = Date.now() + LOOKUP_BUDGET_MS
 	const known = new Map<string, string | undefined>()
 	const pending = new Map<string, Lookup>()
 	for (;;) {
@@ -353,7 +356,7 @@ async function mergesMain($: EngineInterface, command: string): Promise<boolean>
 			},
 		})
 		if (!verdict || pending.size === 0) return verdict
-		for (const [key, request] of pending) known.set(key, await resolveLookup($, request, deadline - Date.now()))
+		for (const [key, request] of pending) known.set(key, await resolveLookup($, request))
 	}
 }
 
@@ -516,7 +519,7 @@ export const register: Register = on => {
 	)
 
 	on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
-		if (e.agentId === undefined || !(await mergesMain($, e.command))) return next(e)
+		if (e.agentId === undefined || !(await mergesMain($, e.command, e.agentId))) return next(e)
 		return { deny: MERGE_REFUSAL }
 	}).catch(($, e, next) =>
 		next.called ? next(e) : { deny: `${MERGE_REFUSAL} The merge check failed, so the command is refused.` },
@@ -532,7 +535,7 @@ export const register: Register = on => {
 
 	on('tool.check', { tool: 'Bash' }, async ($, e, next) => {
 		if (e.agentId !== undefined) return next(e)
-		const merges = await mergesMain($, commandOf(e.input))
+		const merges = await mergesMain($, commandOf(e.input), undefined)
 		const verdict = await next(e)
 		if (!merges || verdict.decision === 'deny') return verdict
 		return { decision: 'ask', reason: ASK_REASON }
