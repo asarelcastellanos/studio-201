@@ -191,6 +191,11 @@ Known limits: variable or substitution indirection, quote tricks such as `$'..'`
 Why: a guard that tries to catch every trick has no end, and it starts denying honest commands.
 Status: agreed.
 
+**D45. Ponytail shapes coder, mechanic and reviewer. accessibility-skills is linked, not adapted.** Coder and mechanic take ponytail's smallest-complete-change ladder, and reviewer takes its review order. ui-builder and design-critic link mgifford/accessibility-skills as a reference and copy none of its text.
+Why: ponytail is MIT and gives a short rule for the smallest complete change. accessibility-skills is AGPL-3.0, and adapting its text would force our files to AGPL-3.0.
+Gave up: accessibility rules in our own words until 0.3.
+Status: agreed.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
