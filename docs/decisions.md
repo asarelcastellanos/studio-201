@@ -141,6 +141,26 @@ Why: the owner wants to review a whole version at once instead of each feature, 
 Gave up: main doesn't get each feature as soon as it's done.
 Status: default.
 
+**D34. The main session's shell runs an allowlist.** It may run read tools (ls, cat, grep, find without -delete or -exec, sed without -i, jq and similar), listed git subcommands (status, log, diff, show, add, commit, push, fetch, switch, merge and similar, not checkout, reset, restore, clean, rm, mv or apply), gh, and `claude plugin validate|test|list`. Interpreters, package runners and scripts are refused. In temp dirs it may also rm, cp, mkdir, touch and chmod. Anything else is delegated to an agent.
+Why: the review of PR #28 showed that a blocklist of write commands always leaves another way to write a file. An allowlist is harder to get around.
+Gave up: the orchestrator can't run one-off scripts itself.
+Status: agreed.
+
+**D35. A GitHub ruleset protects main.** Changes reach main only through a PR, with no force pushes and no deletion. Project setup (C8) adds the same ruleset to every product repo.
+Why: agents act as my GitHub account, so the policy hook is a guard against mistakes and the ruleset is a second layer GitHub enforces.
+Gave up: nothing. I still merge PRs normally.
+Status: agreed.
+
+**D36. Tests are table-driven.** One test per rule, with a table of cases. Each row is one line: who runs what, and the expected result.
+Why: I want to read a version's tests as a list of rules with examples, not hundreds of named tests.
+Status: agreed.
+
+**D37. The policy earns automated tests.** Command matching has many cases, which is one of the four reasons in D9. The plan's line "the one automated test" (C6) is out of date: v0.1 has the policy tests and the forecast test.
+Status: default.
+
+**D38. Small policy defaults.** An agent the policy can't find in the agent list counts as a writing role. `gh pr edit --base main` alone is allowed, and only combined with a merge is it refused. The hook is a guard against mistakes, and the ruleset (D35) is the backstop for main.
+Status: default.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
