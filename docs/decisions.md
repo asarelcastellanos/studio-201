@@ -342,3 +342,25 @@ Status: agreed (owner approved on 2026-11-20).
 Why: the engine delivers rate limits with each response, not on demand.
 Gave up: an exact match with `/usage` between responses.
 Status: agreed (owner approved on 2026-11-20).
+
+D81 to D89 are held for the C9 work. This group starts at D90.
+
+**D90. "Top 5" means the 5 longest-running agents.** The Agents section orders running agents by start time, oldest first, and breaks ties by id. This applies A10.
+Why: a stuck agent rises to the top, and the order does not change while agents run.
+Gave up: newest first, which puts fresh work on top but buries a stuck agent.
+Status: default.
+
+**D91. Running agents show their start time, not run time.** The line reads "since 2:04 PM" in Pacific time, like the session line in D72. Finished agents show "ran 6m 02s", which never changes.
+Why: the pane redraws on agent start, stop and turn events only, so a running timer would go stale between them.
+Gave up: a live run time for running agents, which C10 names.
+Status: default.
+
+**D92. The mod keeps its own list of finished agents.** On `classic.SubagentStop`, and at each draw, the mod copies any agent with status completed, failed or killed into memory, with the time it first saw it as the end time. `$.agent.list()` drops a finished agent seconds later. The list resets on reload, so agents that finished before the mod loaded never appear (A6). Opening "N finished" shows every finished agent, newest first, and finished rows are not clickable.
+Why: AgentInfo has a start time but no end time, and the engine drops the agent soon after it ends.
+Gave up: the design page's "Show 9 more" under the finished list, and viewing a finished agent's transcript.
+Status: default.
+
+**D93. Clicking an agent calls `$.ui.view`, and only the role line is the button.** The engine's own view shows the agent's transcript, so the mod draws no transcript. A `Button` takes one line of text, so the task, model, start and tokens lines are plain text. While an agent is in view (`e.props.view.agentId`), the pane shows "‹ Back to main" at the top and marks that agent with "●". The two open or closed states reset to closed each time the pane opens.
+Why: the engine supports the view and the way back, and a Button cannot hold several lines.
+Gave up: a click target over the whole agent entry.
+Status: default.
