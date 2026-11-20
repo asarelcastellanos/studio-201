@@ -80,7 +80,7 @@ Status: agreed.
 **D19. Never assume repo visibility.** Every new app asks public or private. Studio 201 is public.
 Status: agreed.
 
-**D20. Git flow.** One `feature/<name>` branch per feature. One `issue/<n>-<name>` branch per issue, with its PR squash merged into the feature branch. The feature branch squash merges into main, one commit per feature. Only I merge to main.
+**D20. Git flow.** One `feature/<name>` branch per feature. One `issue/<n>-<name>` branch per issue, with its PR squash merged into the feature branch. The feature branch squash merges into main, one commit per feature. Only I merge to main. Small related issues may share one PR. Name its branch after the first issue and list every issue in the PR body.
 Why: main stays readable, with one commit per feature. Issue branches can't live under `feature/<name>/` because git refuses a branch nested inside another branch's name.
 Status: agreed.
 
@@ -130,6 +130,43 @@ Status: default.
 
 **D31. Almost no code comments, and a deslop pass before review.** A comment stays only when the code can't say the same thing: a workaround for an outside bug, a constraint that isn't obvious, or a link to a spec claim. Everything else is fixed by renaming or restructuring. Reviewers flag the rest. A deslop skill, adapted from Cursor's team kit and pstack, comes in 0.2 and removes dead code, needless abstraction, defensive checks inside trusted code, and noise comments.
 Why: comments drift from the code and pad agent output. Clear names do the same job and stay true.
+Status: agreed.
+
+**D32. Read-only roles can't write files through the shell.** The policy refuses shell commands that write files when scout, researcher, reviewer, design-critic or qa-runner runs them. qa-runner may write under `qa/`. C13 now reads "Read-only roles can't edit files, including through shell commands."
+Why: reviewers and QA are only independent if they can't change what they check.
+Status: agreed.
+
+**D33. One release branch per version.** Each version gets a `release/v<x.y.z>` branch cut from main. A fix release is cut from main under its new patch version. Feature branches come off it, and feature PRs squash merge into it after review and QA. The owner reviews the version once, as a PR from the release branch into main, and merges it with rebase, so main gets one commit per feature. Only the owner merges into main. Replaces the main-merge step of D20.
+Why: the owner wants to review a whole version at once instead of each feature, so the build doesn't stop between features.
+Gave up: main doesn't get each feature as soon as it's done.
+Status: default.
+
+**D34. The main session's shell runs an allowlist.** It may run read tools (ls, cat, grep, find without -delete or -exec, sed without -i, jq and similar), listed git subcommands (status, log, diff, show, add, commit, push, fetch, switch, merge and similar, not checkout, reset, restore, clean, rm, mv or apply), gh, and `claude plugin validate|test|list`. Interpreters, package runners and scripts are refused. In temp dirs it may also rm, cp, mkdir, touch and chmod. Anything else is delegated to an agent.
+Why: the review of PR #28 showed that a blocklist of write commands always leaves another way to write a file. An allowlist is harder to get around.
+Gave up: the orchestrator can't run one-off scripts itself.
+Status: agreed.
+
+**D35. A GitHub ruleset protects main.** Changes reach main only through a PR, with no force pushes and no deletion. Project setup (C8) adds the same ruleset to every product repo.
+Why: agents act as my GitHub account, so the policy hook is a guard against mistakes and the ruleset is a second layer GitHub enforces.
+Gave up: nothing. I still merge PRs normally.
+Status: agreed.
+
+**D36. Tests are table-driven.** One test per rule, with a table of cases. Each row is one line: who runs what, and the expected result.
+Why: I want to read a version's tests as a list of rules with examples, not hundreds of named tests.
+Status: agreed.
+
+**D37. The policy earns automated tests.** Command matching has many cases, which is one of the four reasons in D9. The plan's line "the one automated test" (C6) is out of date: v0.1 has the policy tests and the forecast test.
+Status: default.
+
+**D38. Small policy defaults.** An agent the policy can't find in the agent list counts as a writing role. `gh pr edit --base main` alone is allowed, and only combined with a merge is it refused. The hook is a guard against mistakes, and the ruleset (D35) is the backstop for main.
+Status: default.
+
+**D39. A light policy instead of the allowlist.** The main session's Edit and Write on any file outside notes, plans and temp dirs are refused, merges and pushes to main are checked by plain string matching, and delegation is a judgment rule in AGENTS.md. Read-only roles keep their tool lists, and shell writes are an instruction, not a check. Replaces D34 and the shell part of D32. Heredoc lines that start with `gh pr merge` or `git push origin main` can be refused, a known false positive.
+Why: checking every way a shell command can write a file or reach main turned into an endless list (PR #28, closed). For personal and open-source use, the orchestrator occasionally doing a small thing itself is fine. The ruleset on main (D35) remains the hard line.
+Gave up: protection against an agent deliberately working around the check.
+Status: agreed.
+
+**D40. D39 replaces D32's shell part, D34, and D38.** The light policy doesn't look up agent roles or check `gh pr edit`, and read-only shell writes are an instruction.
 Status: agreed.
 
 ## Spec assumptions, v0.1

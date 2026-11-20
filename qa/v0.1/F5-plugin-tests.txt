@@ -1,0 +1,74 @@
+$ claude plugin validate .   (exit 0)
+
+Validating plugin manifest: /Users/asarelcastellanos/Documents/studio-201/.claude/worktrees/agent-af63324308c4454fe/.claude-plugin/plugin.json
+
+⚠ Found 1 warning:
+
+  ❯ author: No author information provided. Consider adding author details for plugin attribution
+
+Validating hooks: /Users/asarelcastellanos/Documents/studio-201/.claude/worktrees/agent-af63324308c4454fe/hooks/hooks.json
+
+  ❯ ./register.tsx hooks: tool.call, classic.SubagentStart, classic.SubagentStop
+  ❯ ./register.tsx gating hook with .catch: tool.call
+  ❯ ./register.tsx gating hook without .catch: classic.SubagentStart
+  ❯ ./register.tsx gating hook without .catch: classic.SubagentStop
+  ❯ ./register.tsx calls: $.agent.list, $.env.get (via isAllowedPath), $.process.run (via checkMerge, git), $.ui.toast
+  ❯ ./register.tsx env writes: nothing
+  ❯ ./register.tsx env reads: HOME, TMPDIR
+
+Provides:
+
+  ❯ modules: hooks/register.tsx
+  ❯ agents: studio-201:check-writer
+  ❯ agents: studio-201:coder
+  ❯ agents: studio-201:design-critic
+  ❯ agents: studio-201:mechanic
+  ❯ agents: studio-201:qa-runner
+  ❯ agents: studio-201:researcher
+  ❯ agents: studio-201:reviewer
+  ❯ agents: studio-201:scout
+  ❯ agents: studio-201:ui-builder
+  ❯ agents: studio-201:writer
+
+Hosts not read for: modules (1)
+Hosts not declared: list what these parts reach under "network.hosts" in plugin.json
+
+Plugin directory checks for /Users/asarelcastellanos/Documents/studio-201/.claude/worktrees/agent-af63324308c4454fe. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.
+
+⚠ Found 1 plugin directory warning:
+
+  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.
+
+About these checks:
+
+  ❯ hooks/hooks.json names a hooks module (a code file listed under `modules`). The plugin directory has rules of its own for such code, and these checks apply none of them, so passing here does not mean the directory accepts the plugin. The developer portal's own validation applies those rules.
+
+These plugin directory checks do not change the result below.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+ℹ Advice (does not change the verdict):
+
+  ❯ /Users/asarelcastellanos/Documents/studio-201/.claude/worktrees/agent-af63324308c4454fe/README.md: This README has no line that installs "studio-201" from a marketplace. Add the install line, which works in one step on Claude Code 2.1.275 or later. Validate the folder that holds its marketplace.json to have <owner>/<repo> filled in, and the name its marketplace lists it under.
+      /plugin install studio-201 --marketplace <owner>/<repo>
+
+✔ Validation passed with warnings
+
+
+$ claude plugin test .   (exit 0)
+
+tests/policy.test.ts:
+(pass) the main session may not edit repo files [28.75ms]
+(pass) no actor pushes to main [14.80ms]
+(pass) a merge is refused when it lands in main or the base is unknown [15.22ms]
+(pass) everyday commands pass [10.54ms]
+(pass) each refusal says why [9.51ms]
+
+tests/readonly.test.ts:
+(pass) a read-only agent that changed the repo is flagged [32.46ms]
+(pass) the flag names the agent and at most 5 paths [13.01ms]
+
+ 7 pass
+ 0 fail
+Ran 7 tests across 2 files. [0.19s]

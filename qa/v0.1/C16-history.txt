@@ -1,0 +1,31 @@
+C16 check: issue branches squash merged into feature/team-policy
+
+$ git log --oneline origin/feature/team-policy
+f4c248a Add light policy hook for edits and main merges (#34)
+3b7eb3b Document the policy decisions D34 to D38 (#33)
+fbc0d2d Add release branch flow to Git rules (#30)
+0a40241 Add agent files for each team role (#25)
+16434c2 Add AGENTS.md with git rules (#24)
+e504145 Log spike results and no-comments rule
+e458eba Add v0.1 plan and solo-developer audience
+8e3e5b5 Add Studio 201 plan, v0.1 spec and roadmap
+
+$ gh pr list --state merged --base feature/team-policy --json number,title,headRefName
+[{"headRefName":"issue/20-light-policy","number":34,"title":"Add light policy hook for edits and main merges"},{"headRefName":"issue/32-policy-docs","number":33,"title":"Document the policy decisions D34 to D38"},{"headRefName":"issue/29-release-branch","number":30,"title":"Add release branch flow to Git rules"},{"headRefName":"issue/19-agent-files","number":25,"title":"Add agent files for each team role"},{"headRefName":"issue/22-branch-flow","number":24,"title":"Add AGENTS.md with git rules"}]
+
+Squash proof: each merge commit has one parent (git log --format='%h %p | %s'), and PRs
+that had several commits landed as one.
+
+$ gh pr list --state merged --base feature/team-policy --json number,headRefName,mergeCommit,commits
+PR  head branch              merge commit  commits in PR  parents of merge commit
+34  issue/20-light-policy    f4c248a       3              1 (3b7eb3b)
+33  issue/32-policy-docs     3b7eb3b       2              1 (fbc0d2d)
+30  issue/29-release-branch  fbc0d2d       1              1 (0a40241)
+25  issue/19-agent-files     0a40241       1              1 (16434c2)
+24  issue/22-branch-flow     16434c2       1              1 (e504145)
+
+Result: PASS. All 5 merged PRs have base feature/team-policy, an issue/<n>-<name> head
+branch, and a single-parent squash commit. No merge commits in the branch history.
+
+Note: the three oldest commits (8e3e5b5, e458eba, e504145) are the plan, spec and spike
+commits made before the branch flow existed. They are not agent PRs and are outside C16.
