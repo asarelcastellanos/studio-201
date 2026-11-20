@@ -276,3 +276,24 @@ Status: default.
 **D63. The Pacific time format is "Sat Nov 21, 12:10 AM PST", with the zone abbreviation.** The formatter uses `Intl.DateTimeFormat` with `America/Los_Angeles`.
 Why: A5 asks for day, date and time. The abbreviation tells PST from PDT on 1 November, when 1:10 AM happens twice.
 Status: default.
+
+## Pane frame, issue #10
+
+**D56. Tokens used sums all four counts, cache reads included.** Input, output, cache read and cache creation tokens from each turn's usage all add up.
+Why: it matches the total the engine reports per turn, and it shows how much the session moved, not only what it billed at full rate.
+Gave up: a smaller number that leaves out cache reads.
+Status: default.
+
+**D57. Tokens by model reset when the mod reloads.** The engine has no whole-session tokens-by-model call, so the mod adds up `turn.complete` usage in memory, subagent turns included. A reload or a resumed session starts the totals at zero.
+Why: C4 does not ask for history, and storing totals would need a session id the mod does not have.
+Gave up: totals that survive a reload.
+Status: default.
+
+**D58. The Board slot draws nothing until C9 fills it.** The pane header has a slot for the Board link and passes nothing to it yet.
+Why: D49 puts the Board link in the header, and C9 owns the link.
+Status: default.
+
+**D59. The policy block shows on or off and tokens by model, without the design's role lines.** The design lists which model plays main and agents. The pane leaves those lines out, and the engine draws the close control, so the design's "×" is dropped too.
+Why: C4 asks for whether the policy is on and tokens by model. No call tells the mod each role's model.
+Gave up: the role lines in the Policy block.
+Status: default.

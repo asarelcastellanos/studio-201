@@ -22,13 +22,19 @@ import {
 	sameSnapshot,
 } from '../src/setup'
 import type { Mode, Paths, SetupIo } from '../src/setup'
+import { renderPane } from '../src/pane'
 import { runUpdate } from '../src/update'
 import type { UpdateIo } from '../src/update'
+import { addTurn, sumTokens } from '../src/usage'
+import type { Totals } from '../src/usage'
 
 const NAME = 'studio'
 const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
-const USAGE = 'Usage: /studio policy [on|off], /studio setup or /studio update'
+const USAGE = 'Usage: /studio opens the pane, /studio policy [on|off], /studio setup or /studio update'
+const PANE_ID = 'studio-201'
+const PANE_TITLE = 'Studio 201'
+const totals: Totals = new Map()
 const UPDATE_TOOL = 'studio_update'
 const UPDATE_TOOL_ID = 'mcp__studio-201__studio_update'
 const UPDATE_ASK_REASON = 'studio-201: this pulls the clone and reinstalls Studio 201. Approve or decline.'
@@ -44,8 +50,10 @@ const UPDATE_STEP_TIMEOUT_MS = 120000
 
 async function policyCommand($: EngineInterface, args: string): Promise<string> {
 	const arg = args.trim().toLowerCase()
-	if (arg === 'on' || arg === 'off') await update($, policyAtom, () => arg === 'on')
-	else if (arg !== '') return USAGE
+	if (arg === 'on' || arg === 'off') {
+		await update($, policyAtom, () => arg === 'on')
+		$.ui.invalidate('ui.render')
+	} else if (arg !== '') return USAGE
 	return (await read($, policyAtom)) ? 'on' : 'off'
 }
 
@@ -213,6 +221,11 @@ async function updateStudio($: EngineInterface): Promise<{ ok: boolean; text: st
 	}
 }
 
+async function openPane($: EngineInterface): Promise<string> {
+	const opened = await $.ui.open({ id: PANE_ID, title: PANE_TITLE })
+	return opened.isPlaced ? 'Studio 201 pane open.' : `The pane could not open: ${opened.reason}`
+}
+
 type Restriction = { strict: boolean; refusal: string }
 
 async function baseContext($: EngineInterface, strict: boolean): Promise<PolicyContext> {
@@ -330,6 +343,7 @@ export const register: Register = on => {
 		})
 		await $.tool.register({ name: UPDATE_TOOL, description: UPDATE_TOOL_DESCRIPTION })
 		const started = await next(e)
+		if (e.isInteractive) await openPane($).catch(() => undefined)
 		if (e.isInteractive && (await $.store.get(SETUP_KEY)) === undefined) startSetup($)
 		return started
 	})
@@ -343,10 +357,33 @@ export const register: Register = on => {
 				return { text: await setupCommand($) }
 			case 'update':
 				return { text: (await updateStudio($)).text }
+			case '':
+				return { text: await openPane($) }
 			default:
 				return { text: USAGE }
 		}
 	}).catch(() => ({ text: 'studio: the command failed.' }))
+
+	on('turn.complete', async ($, e, next) => {
+		if (e.usage !== undefined) {
+			addTurn(totals, e.usage.model, e.usage)
+			$.ui.invalidate('ui.render')
+		}
+		return next(e)
+	}).catch(($, e, next) => next(e))
+
+	on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
+		const usage = await $.session.usage()
+		return renderPane($.ui.resolve(e), {
+			model: await $.session.model(),
+			policyOn: await read($, policyAtom),
+			byModel: totals,
+			elapsedMs: (await $.clock.now()) - usage.startedAt,
+			tokens: sumTokens(totals),
+			costUsd: usage.cost?.usd,
+			context: usage.context,
+		})
+	})
 
 	on('tool.run', { tool: UPDATE_TOOL_ID }, async $ => {
 		const { ok, text } = await updateStudio($)
