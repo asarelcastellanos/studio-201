@@ -364,3 +364,10 @@ Status: agreed (owner approved on 2026-11-20).
 Why: `Link` draws an OSC 8 hyperlink on the terminal, and the pane is 20 columns wide, so a dim hint line would crowd the header. `/board` already prints the setup hint.
 Gave up: a hint in the pane for a repo with no board.
 Status: default.
+
+## Policy guards, issue #88
+
+**D100. `git merge` is checked by its current branch, and a `$` path ending in `.md` is not code.** The merge guard now treats `git merge` as a merge into main only when the current branch is main or unknown (D55 still applies). `git merge --abort`, `--quit` and `--continue` pass. `git merge origin/main` on an issue branch passes. `gh pr merge` and `git push` keep their checks by subcommand and target branch, and no check reads the words "merge" or "main" elsewhere in a command. The code-edit guard allows a write target with a shell variable in it when the path ends in `.md`, such as `"$SCRATCH/notes.md"`, for the main session. A variable path that does not end in `.md` still counts as code.
+Why: C15 and C14 only listed `gh pr merge`, `git push` and `gh api` for main, so a local `git merge` on main went unchecked. A `.md` suffix is known even when the directory is not.
+Gave up: allowing a variable path that points into the scratchpad but does not end in `.md`.
+Status: default.

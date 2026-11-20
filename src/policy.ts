@@ -102,7 +102,8 @@ export function isCodePath(path: string, ctx: PolicyContext): boolean {
 }
 
 function targetIsCode(raw: string, ctx: PolicyContext): boolean {
-	return /[$`]/.test(raw) || isCodePath(raw, ctx)
+	if (/[$`]/.test(raw)) return !isMarkdown(raw, ctx)
+	return isCodePath(raw, ctx)
 }
 
 function closingParen(text: string, open: number): number {

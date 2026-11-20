@@ -129,6 +129,14 @@ function gitPushUpdatesMain(call: Invocation, ctx: MergeContext): boolean {
 	return isMain(currentBranch(ctx, cwd))
 }
 
+function gitMergesMain(call: Invocation, ctx: MergeContext): boolean {
+	const { sub, rest, cwd } = gitCommand(call.args, ctx)
+	if (sub !== 'merge') return false
+	if (rest.some(arg => arg === '--abort' || arg === '--quit' || arg === '--continue')) return false
+	if (call.viaXargs) return true
+	return isMain(currentBranch(ctx, cwd))
+}
+
 function namesBranch(name: string): boolean {
 	return !/[$`~^@]/.test(name) && name !== '-' && !/^(?:origin|upstream)\//.test(name) && !/^[0-9a-f]{7,40}$/.test(name)
 }
@@ -221,7 +229,7 @@ function commandMerges(call: Invocation, ctx: MergeContext): boolean {
 		return flag >= 0 && mergesIntoMain(args[flag + 1] ?? '', ctx)
 	}
 	if (cmd === 'eval') return args.some(arg => arg.includes('$') || arg.includes('`')) || mergesIntoMain(args.join(' '), ctx)
-	if (cmd === 'git') return gitPushUpdatesMain(call, ctx)
+	if (cmd === 'git') return gitPushUpdatesMain(call, ctx) || gitMergesMain(call, ctx)
 	if (cmd === 'gh' && args[0] === 'pr' && args[1] === 'merge') return ghPrMergesMain(call, args.slice(2), ctx)
 	if (cmd === 'gh' && args[0] === 'api') return ghApiUpdatesMain(call, args.slice(1), ctx)
 	return false
