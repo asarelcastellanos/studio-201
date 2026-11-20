@@ -2,12 +2,13 @@ import type { EngineInterface, On, ToolCallInput } from 'claude-code'
 
 type Engine = Pick<EngineInterface, 'env' | 'process'>
 
-const DELEGATE = 'The main session does not edit repo files. Delegate this to an agent.'
+const DELEGATE = 'The main session writes only notes, plans and temp files. Delegate this to an agent.'
 const OWNER_ONLY = 'Only the owner merges into main.'
 const UNREADABLE = `Couldn't check which branch this merges into. ${OWNER_ONLY}`
 
 const PREFIX_WORDS = new Set(['time', 'env', 'command'])
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/
+const MERGE_VALUE_FLAGS = new Set(['-t', '--subject', '-b', '--body', '-F', '--body-file', '--match-head-commit', '-A', '--author-email'])
 const PULL_MERGE = /(?:^|\/)(?:repos\/([^/]+\/[^/]+)\/)?pulls\/(\d+)\/merge$/
 
 const normalize = (path: string) => {
@@ -111,6 +112,7 @@ const parsePrMerge = (args: string[]) => {
     const arg = args[i] ?? ''
     if (arg === '-R' || arg === '--repo') target.repo = args[++i]
     else if (arg.startsWith('--repo=')) target.repo = arg.slice('--repo='.length)
+    else if (MERGE_VALUE_FLAGS.has(arg)) i++
     else if (!arg.startsWith('-') && target.selector === undefined) target.selector = arg
   }
   return target

@@ -106,6 +106,8 @@ test('a merge is refused when it lands in main or the base is unknown', async ($
     ['agent', 'Bash', 'gh api --method=PUT repos/{owner}/{repo}/pulls/5/merge', 'refuse'],
     ['main', 'Monitor', 'gh pr merge 5', 'refuse'],
     ['agent', 'Bash', 'gh pr merge 6 --squash', 'allow'],
+    ['agent', 'Bash', 'gh pr merge --subject "Add x (#6)" 6', 'allow'],
+    ['agent', 'Bash', 'gh pr merge -b note 5', 'refuse'],
     ['agent', 'Bash', 'gh pr merge 7 --squash --delete-branch', 'allow'],
     ['agent', 'Bash', 'gh pr merge 6 --repo owner/repo', 'allow'],
     ['agent', 'Bash', 'gh api --method PUT repos/owner/repo/pulls/6/merge', 'allow'],
