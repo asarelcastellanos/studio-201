@@ -1,0 +1,55 @@
+$ scripts/new-project.sh asarelcastellanos/studio-201 --dry-run
+skip: repo asarelcastellanos/studio-201 exists
+skip: project #8 is linked to asarelcastellanos/studio-201
+skip: Status options are set
+skip: field Agent exists
+skip: field Model exists
+skip: field Claim exists
+skip: field Round exists
+skip: field Size exists
+skip: view Board exists
+skip: view Open findings exists
+skip: view By agent exists
+skip: label feature exists
+skip: label claim exists
+skip: label finding exists
+skip: label found-by:qa exists
+skip: label found-by:review exists
+skip: Protect main ruleset exists
++ write /Users/asarelcastellanos/Documents/studio-201/.claude/worktrees/agent-ae98bcbfd9f7980ad/.studio/config.json
+{
+  "owner": "asarelcastellanos",
+  "repo": "studio-201",
+  "projectNumber": 8,
+  "boardUrl": "https://github.com/users/asarelcastellanos/projects/8/views/2"
+}
+Commit .studio/config.json so /board and the pane can find the board.
+
+$ echo private | scripts/new-project.sh asarelcastellanos/studio-201-demo --dry-run   (repo that does not exist, nothing is created)
++ gh repo create asarelcastellanos/studio-201-demo --private
++ gh project create --owner asarelcastellanos --title studio-201-demo --format json --jq .number
++ gh project link PROJECT_NUMBER --owner asarelcastellanos --repo asarelcastellanos/studio-201-demo
++ gh api graphql --input - <<< '{"query":"mutation($field:ID!,$options:[ProjectV2SingleSelectFieldOptionInput!]!){updateProjectV2Field(input:{fieldId:$field,singleSelectOptions:$options}){clientMutationId}}","variables":{"field":"STATUS_FIELD_ID","options":[{"name":"Backlog","color":"GRAY","description":"Ideas not yet scoped"},{"name":"Scoping","color":"BLUE","description":"Research and spec in progress"},{"name":"Spec review","color":"ORANGE","description":"Waiting on my approval"},{"name":"Ready","color":"GREEN","description":"Approved, waiting to be picked up"},{"name":"In progress","color":"YELLOW","description":"An agent is building it"},{"name":"Checking","color":"PURPLE","description":"Review and QA running"},{"name":"Needs fix","color":"RED","description":"A finding is open"},{"name":"Merge review","color":"ORANGE","description":"Waiting on my merge"},{"name":"Done","color":"GRAY","description":"Merged"}]}}'
++ gh project field-create PROJECT_NUMBER --owner asarelcastellanos --name Agent --data-type SINGLE_SELECT --single-select-options Orchestrator\,Scout\,Researcher\,Reviewer\,Design\ critic\,QA\ runner\,Check\ writer\,Coder\,UI\ builder\,Writer\,Mechanic
++ gh project field-create PROJECT_NUMBER --owner asarelcastellanos --name Model --data-type SINGLE_SELECT --single-select-options Opus\,Sonnet\,Haiku\,Fable\,Codex
++ gh project field-create PROJECT_NUMBER --owner asarelcastellanos --name Claim --data-type TEXT
++ gh project field-create PROJECT_NUMBER --owner asarelcastellanos --name Round --data-type NUMBER
++ gh project field-create PROJECT_NUMBER --owner asarelcastellanos --name Size --data-type SINGLE_SELECT --single-select-options Small\,Normal\,Large
++ gh api -X POST users/29580634/projectsV2/PROJECT_NUMBER/views -f name=Board -f layout=board
++ gh api -X POST users/29580634/projectsV2/PROJECT_NUMBER/views -f name=Open\ findings -f layout=table -f filter=label:finding\ is:open
++ gh api -X POST users/29580634/projectsV2/PROJECT_NUMBER/views -f name=By\ agent -f layout=table -f filter=is:open
++ gh label create feature -R asarelcastellanos/studio-201-demo --description A\ feature\ with\ claims\ as\ sub-issues --color 5319E7
++ gh label create claim -R asarelcastellanos/studio-201-demo --description One\ testable\ claim\ from\ a\ spec --color 0E8A16
++ gh label create finding -R asarelcastellanos/studio-201-demo --description A\ review\ or\ QA\ finding --color D93F0B
++ gh label create found-by:qa -R asarelcastellanos/studio-201-demo --description '' --color FBCA04
++ gh label create found-by:review -R asarelcastellanos/studio-201-demo --description '' --color FBCA04
++ gh api -X POST repos/asarelcastellanos/studio-201-demo/rulesets --input - <<< '{"name":"Protect main","target":"branch","enforcement":"active","conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},"rules":[{"type":"deletion"},{"type":"non_fast_forward"},{"type":"pull_request","parameters":{"required_approving_review_count":0,"dismiss_stale_reviews_on_push":false,"require_code_owner_review":false,"require_last_push_approval":false,"required_review_thread_resolution":false}}]}'
++ write /Users/asarelcastellanos/Documents/studio-201/.claude/worktrees/agent-ae98bcbfd9f7980ad/.studio/config.json
+{
+  "owner": "asarelcastellanos",
+  "repo": "studio-201-demo",
+  "projectNumber": PROJECT_NUMBER,
+  "boardUrl": "https://github.com/OWNER/projects/PROJECT_NUMBER/views/VIEW_NUMBER"
+}
+Commit .studio/config.json so /board and the pane can find the board.
+In the By agent view, choose Group by > Agent. The API can't set grouping.
