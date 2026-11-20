@@ -1,0 +1,14 @@
+{
+	"name": "studio-201",
+	"owner": {
+		"name": "asarelcastellanos"
+	},
+	"description": "Studio 201 keeps the main Claude session to planning and review, and sends code work to agents.",
+	"plugins": [
+		{
+			"name": "studio-201",
+			"source": "./",
+			"description": "An agent team for Claude Code: an Opus orchestrator plans, specialist agents build, review and run QA, and a pane shows cost, limits and running agents."
+		}
+	]
+}
