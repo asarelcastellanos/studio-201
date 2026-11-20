@@ -364,3 +364,46 @@ Status: agreed (owner approved on 2026-11-20).
 Why: `Link` draws an OSC 8 hyperlink on the terminal, and the pane is 20 columns wide, so a dim hint line would crowd the header. `/board` already prints the setup hint.
 Gave up: a hint in the pane for a repo with no board.
 Status: default.
+
+**D90. "Top 5" means the 5 longest-running agents.** The Agents section orders running agents by start time, oldest first, and breaks ties by id. This applies A10.
+Why: a stuck agent rises to the top, and the order does not change while agents run.
+Gave up: newest first, which puts fresh work on top but buries a stuck agent.
+Status: default.
+
+**D91. Running agents show their start time, not run time.** The line reads "since 2:04 PM" in Pacific time, like the session line in D72. Finished agents show "ran 6m 02s", which never changes.
+Why: the pane redraws on agent start, stop and turn events only, so a running timer would go stale between them.
+Gave up: a live run time for running agents, which C10 names.
+Status: default.
+
+**D92. The mod keeps its own list of finished agents.** On `classic.SubagentStop`, and at each draw, the mod copies any agent with status completed, failed or killed into memory, with the time it first saw it as the end time. `$.agent.list()` drops a finished agent seconds later. The list resets on reload, so agents that finished before the mod loaded never appear (A6). Opening "N finished" shows every finished agent, newest first, and finished rows are not clickable.
+Why: AgentInfo has a start time but no end time, and the engine drops the agent soon after it ends.
+Gave up: the design page's "Show 9 more" under the finished list, and viewing a finished agent's transcript.
+Status: default.
+
+**D93. Clicking an agent calls `$.ui.view`, and only the role line is the button.** The engine's own view shows the agent's transcript, so the mod draws no transcript. A `Button` takes one line of text, so the task, model, start and tokens lines are plain text. While an agent is in view (`e.props.view.agentId`), the pane shows "‹ Back to main" at the top and marks that agent with "●". The two open or closed states reset to closed each time the pane opens.
+Why: the engine supports the view and the way back, and a Button cannot hold several lines.
+Gave up: a click target over the whole agent entry.
+Status: default.
+
+**D94. The mod keeps the newest 50 finished agents.** When the mod adds a finished agent, it drops the oldest entries by end time until 50 remain. "N finished" counts the agents kept. Opening it shows the newest 5, and "Show N more ›" and "Show fewer ‹" expand and collapse the rest, as in the running list. This changes D92, which showed every finished agent.
+Why: the list is module-level memory and grew without bound.
+Gave up: showing every finished agent in a session, and the design page's "Show 9 more" wording.
+Status: default.
+
+**D95. D91 agreed.** The owner approved the start time for running agents on 2026-11-20, so C10's run time is met by the start time.
+Status: agreed.
+
+**D96. The pane has three layouts, chosen by the pane's body width.** The engine gives a Pane `bodyColumns` in `e.props`, the cells inside its frame. Under 32 columns is narrow and keeps the stacked layout of D91 to D93. From 32 to 47 is medium, and 48 and over is wide. Medium and wide join short parts with " · " and start a new line when the next part does not fit. Wide puts a running or finished agent on one line when the task keeps at least 12 characters, and cuts the task with "…". Otherwise the agent uses the medium layout. Limit and context bars grow by 1 cell for every 4 columns past 48, up to 6 cells. A missing `bodyColumns` counts as narrow. The Board link text is "Board" and the href is the URL.
+Why: 32 fits "resets Mon 11/23 2:00 PM PT" (27) with room to spare. 48 fits "7d ████████ 42% · resets Mon 11/23 2:00 PM PT" (45). A one-line agent row such as "Scout · Sleep then list /usr/bin · Haiku 5.5 · since 2:08 PM · 22.6k" takes 68 columns, so below about 60 most agent rows use the medium layout.
+Gave up: a fixed one-line agent row at 48 columns, which would cut most tasks to a few characters.
+Status: default.
+
+**D97. The Board header is a Button that opens the URL.** The engine's `Link` prints its text and then the URL in dim on terminals without OSC 8, and `LinkProps` cannot turn that off. That widened the pane to the length of the URL. The header now shows a plain `Button` labelled "Board". Pressing it runs `$.process.run(['open', url])` when `$.session.info()` reports `macos`, and `xdg-open` on any other platform. If the command fails or exits with a code other than 0, the pane shows a toast "Board: <url>". `/board` still prints the URL. This replaces the Link part of D81 and D96.
+Why: a Button is one short line on every terminal, and the URL stays reachable from the toast and `/board`.
+Gave up: a clickable link on terminals that support OSC 8, and `start` on Windows.
+Status: default.
+
+**D98. An agent is finished only when its status says it ended.** The mod no longer adds an agent to the finished list when `classic.SubagentStop` fires. An agent counts as finished only when `$.agent.list()` reports status completed, failed or killed. An agent whose status is waiting or idle stays in the running list. An agent already in the finished list that the list reports in any other status moves back to running, because the engine says a message may resume an ended agent under the same id. The pane also redraws when an agent's turn starts, which is when a finished background shell wakes an agent. This changes D92.
+Why: `AgentInfo` has no field for an agent's shells. Its `waiting` status is documented as waiting on background work the agent owns, and `SubagentStop` fires when a turn ends, not when the shells end. `SubagentStopHookInput.background_tasks` lists the session's in-flight work, not one agent's, so it cannot say which agent a shell belongs to. Forcing the stopped id into the finished list marked agents the Claude Code footer shows as waiting on a shell.
+Gave up: an agent whose status is completed while a shell still runs would show as finished. The types give no way to tell, so the mod trusts the status.
+Status: default.

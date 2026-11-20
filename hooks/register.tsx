@@ -23,6 +23,8 @@ import {
 	sameSnapshot,
 } from '../src/setup'
 import type { Mode, Paths, SetupIo } from '../src/setup'
+import { runningRows, trackFinished } from '../src/agents'
+import type { FinishedRow } from '../src/agents'
 import { renderPane } from '../src/pane'
 import { parseReadings, recordReadings, viewWindows } from '../src/readings'
 import { runUpdate } from '../src/update'
@@ -40,6 +42,8 @@ const PANE_ID = 'studio-201'
 const PANE_TITLE = 'Studio 201'
 const totals: Totals = new Map()
 let lastStartedAt: number | undefined
+const finishedAgents = new Map<string, FinishedRow>()
+const agentsOpen = { running: false, finished: false, finishedAll: false }
 const UPDATE_TOOL = 'studio_update'
 const UPDATE_TOOL_ID = 'mcp__studio-201__studio_update'
 const UPDATE_ASK_REASON = 'studio-201: this pulls the clone and reinstalls Studio 201. Approve or decline.'
@@ -231,7 +235,15 @@ function syncTotals(startedAt: number): void {
 	lastStartedAt = startedAt
 }
 
+async function agentEvent($: EngineInterface): Promise<void> {
+	trackFinished(finishedAgents, await $.agent.list(), await $.clock.now())
+	$.ui.invalidate('ui.render')
+}
+
 async function openPane($: EngineInterface): Promise<string> {
+	agentsOpen.running = false
+	agentsOpen.finished = false
+	agentsOpen.finishedAll = false
 	const opened = await $.ui.open({ id: PANE_ID, title: PANE_TITLE, backgroundColor: 'transparent' })
 	return opened.isPlaced ? 'Studio 201 pane open.' : `The pane could not open: ${opened.reason}`
 }
@@ -351,6 +363,13 @@ const boardUrl = async ($: EngineInterface): Promise<string | undefined> => {
 	return readBoardUrl({ read }, await $.session.cwd())
 }
 
+const openBoard = async ($: EngineInterface, url: string): Promise<void> => {
+	const { platform } = await $.session.info()
+	const opener = platform === 'macos' ? 'open' : 'xdg-open'
+	const opened = await $.process.run([opener, url]).catch(() => undefined)
+	if (opened === undefined || opened.exitCode !== 0) $.ui.toast(`Board: ${url}`)
+}
+
 export const register: Register = on => {
 	on('session.start', async ($, e, next) => {
 		await $.command.register({
@@ -401,25 +420,71 @@ export const register: Register = on => {
 		return next(e)
 	})
 
+	on('turn.start', async ($, e, next) => {
+		if (e.agentId !== undefined) await agentEvent($)
+		return next(e)
+	}).catch(($, e, next) => next(e))
+
+	on('classic.SubagentStart', async ($, e, next) => {
+		await agentEvent($)
+		return next(e)
+	}).catch(($, e, next) => next(e))
+
+	on('classic.SubagentStop', async ($, e, next) => {
+		await agentEvent($)
+		return next(e)
+	}).catch(($, e, next) => next(e))
+
 	on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
 		const usage = await $.session.usage({ breakdown: 'summary' })
 		syncTotals(usage.startedAt)
 		const breakdown = usage.context.breakdown
+		const agents = await $.agent.list()
+		trackFinished(finishedAgents, agents, await $.clock.now())
+		const redraw = () => $.ui.invalidate('ui.render')
 		const ui = $.ui.resolve(e)
 		const board = await boardUrl($).catch(() => undefined)
 		return renderPane(ui, {
 			model: await $.session.model(),
+			columns: e.props.bodyColumns,
 			policyOn: await read($, policyAtom),
 			byModel: totals,
 			startedAt: usage.startedAt,
 			tokens: sumTokens(totals),
 			cost: usage.cost,
+			agents: {
+				running: runningRows(finishedAgents, agents),
+				finished: [...finishedAgents.values()].sort((a, b) => b.endTime - a.endTime),
+				viewing: e.props.view.agentId,
+				showAllRunning: agentsOpen.running,
+				finishedOpen: agentsOpen.finished,
+				showAllFinished: agentsOpen.finishedAll,
+				view: id => void $.ui.view({ agentId: id }).then(shown => shown.deny && $.ui.toast(shown.deny)),
+				back: () => void $.ui.view({}),
+				toggleRunning: () => {
+					agentsOpen.running = !agentsOpen.running
+					redraw()
+				},
+				toggleFinished: () => {
+					agentsOpen.finished = !agentsOpen.finished
+					redraw()
+				},
+				toggleFinishedMore: () => {
+					agentsOpen.finishedAll = !agentsOpen.finishedAll
+					redraw()
+				},
+			},
 			windows: viewWindows(parseReadings(await $.store.get(READINGS_KEY)), usage.rateLimits, await $.clock.now()),
 			context:
 				breakdown === undefined
 					? usage.context
 					: { tokens: breakdown.totalTokens, window: breakdown.rawMaxTokens, percent: breakdown.percentage },
-		}, board === undefined ? undefined : <ui.Link href={board}>Board</ui.Link>)
+		}, board === undefined ? undefined : (
+				<ui.Button key="board" plain onPress={() => void openBoard($, board)}>
+					Board
+				</ui.Button>
+			),
+		)
 	}).catch(($, e) => {
 		const { Text } = $.ui.resolve(e)
 		return <Text>studio: pane failed to draw.</Text>
