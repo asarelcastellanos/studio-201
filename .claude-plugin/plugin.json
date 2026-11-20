@@ -1,0 +1,7 @@
+{
+	"name": "studio-201",
+	"version": "0.1.0",
+	"author": { "name": "Asarel Castellanos" },
+	"description": "Studio 201 keeps the main Claude session to planning and review, and sends code work to agents.",
+	"types": "./types/index.d.ts"
+}
