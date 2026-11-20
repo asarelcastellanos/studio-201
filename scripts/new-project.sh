@@ -18,7 +18,8 @@ config=".studio/config.json"
 
 if [ -f "$config" ]; then
   existing=$(jq -r '.board // empty' "$config" 2>/dev/null || true)
-  if [ -n "$existing" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' -L "$existing")" = "200" ]; then
+  if [[ "$existing" =~ ^https://github\.com/(users|orgs)/([^/]+)/projects/([0-9]+)$ ]] \
+    && gh project view "${BASH_REMATCH[3]}" --owner "${BASH_REMATCH[2]}" --format json >/dev/null 2>&1; then
     echo "$existing"
     exit 0
   fi
@@ -36,19 +37,16 @@ fi
 repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
 owner="${repo%%/*}"
 name="${repo##*/}"
-owner_type=$(gh api "users/$owner" -q .type)
-if [ "$owner_type" = "Organization" ]; then
+owner_info=$(gh api "users/$owner")
+if [ "$(jq -r .type <<<"$owner_info")" = "Organization" ]; then
   rest_base="orgs/$owner"
 else
-  rest_base="users/$owner"
+  rest_base="users/$(jq -r .id <<<"$owner_info")"
 fi
 
 project=$(gh project create --owner "$owner" --title "$name" --format json)
 number=$(jq -r .number <<<"$project")
 url=$(jq -r .url <<<"$project")
-
-mkdir -p .studio
-jq -n --arg board "$url" '{board: $board}' >"$config"
 
 status_id=$(gh project field-list "$number" --owner "$owner" --format json \
   | jq -r '.fields[] | select(.name == "Status") | .id')
@@ -82,5 +80,8 @@ if ! gh api -X POST "$rest_base/projectsV2/$number/views" \
 fi
 
 gh project link "$number" --owner "$owner" --repo "$repo" >/dev/null
+
+mkdir -p .studio
+jq -n --arg board "$url" '{board: $board}' >"$config"
 
 echo "$url"
