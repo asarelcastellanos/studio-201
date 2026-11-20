@@ -1,0 +1,127 @@
+$ claude plugin test .
+=== S1 hit on 5h. fed now 2026-11-20T20:00Z, 5h 90% resets 23:00Z, 7d 30% resets 2026-11-24T20:00Z
+── Usage ───────────
+5h ███████░ 90%
+resets Fri 11/20
+  3:00 PM PT
+on pace to hit
+limit Fri 11/20
+  12:20 PM PT!
+
+7d ██░░░░░░ 30%
+resets Tue 11/24
+  12:00 PM PT
+on pace: ok
+
+=== S2 fine on both. 5h 22% resets 23:00Z, 7d 30% resets 2026-11-24T20:00Z
+── Usage ───────────
+5h ██░░░░░░ 22%
+resets Fri 11/20
+  3:00 PM PT
+on pace: ok
+
+7d ██░░░░░░ 30%
+resets Tue 11/24
+  12:00 PM PT
+on pace: ok
+
+=== S3a empty store, 5h 12%, 7d 40%
+── Usage ───────────
+5h █░░░░░░░ 12%
+resets Fri 11/20
+  3:00 PM PT
+pace: not enough
+  readings yet
+
+7d ███░░░░░ 40%
+resets Tue 11/24
+  12:00 PM PT
+pace: not enough
+  readings yet
+
+=== S3b two readings per window, 5h 14%, 7d 40%
+── Usage ───────────
+5h █░░░░░░░ 14%
+resets Fri 11/20
+  3:00 PM PT
+pace: not enough
+  readings yet
+
+7d ███░░░░░ 40%
+resets Tue 11/24
+  12:00 PM PT
+pace: not enough
+  readings yet
+
+=== S4 now 2026-10-31T21:00Z, 7d 75% resets 2026-11-02T01:00Z, rising 2 points per hour hits 100 at 2026-11-01T09:30Z
+── Usage ───────────
+5h ░░░░░░░░ 5%
+resets Sat 10/31
+  7:00 PM PT
+pace: not enough
+  readings yet
+
+7d ██████░░ 75%
+resets Sun 11/1
+  5:00 PM PT
+on pace to hit
+limit Sun 11/1
+  1:30 AM PT!
+
+=== S5a before the dip, 7d 61.5%, 5 stored readings
+── Usage ───────────
+5h no reading yet
+
+7d █████░░░ 62%
+resets Tue 11/24
+  12:00 PM PT
+on pace to hit
+limit Mon 11/23
+  4:00 PM PT!
+
+=== S5b after turn.complete with 7d 61.4% (dip of 0.1), same resetsAt
+── Usage ───────────
+5h no reading yet
+
+7d █████░░░ 61%
+resets Tue 11/24
+  12:00 PM PT
+on pace to hit
+limit Mon 11/23
+  6:32 PM PT!
+
+=== S6a before, 7d 61.5%, 5 stored readings
+── Usage ───────────
+5h no reading yet
+
+7d █████░░░ 62%
+resets Tue 11/24
+  12:00 PM PT
+on pace to hit
+limit Mon 11/23
+  4:00 PM PT!
+
+=== S6b after turn.complete with 7d 3% and resetsAt 2026-11-27T20:00Z
+── Usage ───────────
+5h no reading yet
+
+7d ░░░░░░░░ 3%
+resets Fri 11/27
+  12:00 PM PT
+pace: not enough
+  readings yet
+
+
+usage.test.tsx:
+(pass) S1 forecast hit on 5h [56.93ms]
+(pass) S2 pace fine on both [29.66ms]
+(pass) S3 not enough data [27.40ms]
+(pass) S3b two readings only [33.43ms]
+(pass) S4 7d reset after the autumn daylight saving change [25.20ms]
+(pass) S5 a 0.1 dip with the same resetsAt keeps the forecast [28.06ms]
+(pass) S6 a new resetsAt drops to not enough data [30.52ms]
+
+ 7 pass
+ 0 fail
+Ran 7 tests across 1 file. [0.34s]
+exit: 0

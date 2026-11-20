@@ -1,0 +1,21 @@
+$ node --test tests/forecast.test.ts
+node v26.4.0
+✔ 5h forecast that crosses midnight Pacific (0.732708ms)
+✔ 7d forecast that lands exactly on the reset is fine (0.058583ms)
+✔ 7d forecast one minute before the week boundary is a hit (0.060583ms)
+✔ 7d forecast after the week boundary is fine (0.047375ms)
+✔ forecast across the spring daylight saving change on 8 March 2026 (0.059083ms)
+✔ forecast across the autumn daylight saving change on 1 November 2026 (0.298792ms)
+✔ a flat pace is fine (0.06375ms)
+✔ a falling pace is fine (0.045125ms)
+✔ 5h forecast ignores readings older than 30 minutes (0.06ms)
+✔ already at 100 percent is a hit at the latest reading (0.08225ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80.754375
+exit code: 0

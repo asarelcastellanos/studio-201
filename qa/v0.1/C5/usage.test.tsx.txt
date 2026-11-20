@@ -1,0 +1,115 @@
+import { test, expect, mock } from 'claude-code/testing'
+
+function lines(node: any): string[] {
+	if (node === null || node === undefined || typeof node === 'boolean') return []
+	if (typeof node === 'string') return [node]
+	const kids = [...(node.children ?? [])].flatMap(lines)
+	if (node.type === 'Text') return [kids.join('')]
+	return kids
+}
+
+const H = 3600e3
+const M = 60e3
+const iso = (t: number) => new Date(t).toISOString()
+
+type Limit = { kind: string; percentUsed: number; resetsAt?: string }
+
+function setup($: any, on: any, now: number, limits: () => Limit[], seed?: Record<string, unknown>) {
+	mock.clock(on, { now })
+	mock.store(on, seed ?? {})
+	on('session.usage', async () => ({ value: { startedAt: now - 2 * H, context: { tokens: 200000, window: 1000000, percent: 20 }, rateLimits: limits(), cost: { usd: 1.23 } } }) as any)
+	on('session.model', async () => ({ value: 'claude-opus-5-5' }) as any)
+	on('turn.complete', async () => ({ text: '' }) as any)
+}
+
+async function draw($: any, label: string) {
+	const ui = await $.ui.mount({ plugin: 'studio-201', surface: 'terminal', component: 'Pane', requestId: 'studio-201', props: { title: 'Studio 201', isFocused: false, bodyColumns: 24 } as any })
+	const tree = await ui.drawn()
+	const all = lines(tree).map(l => l.replace(/\s+$/, ''))
+	const start = all.findIndex(l => l.startsWith('── Usage'))
+	const end = all.findIndex(l => l.startsWith('── Policy'))
+	console.log(`=== ${label}`)
+	console.log(all.slice(start, end).join('\n'))
+	await ui.unmount()
+}
+
+async function turn($: any, id: string) {
+	await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: id, reason: 'complete' } as any)
+}
+
+const NOW = Date.parse('2026-11-20T20:00:00Z')
+const R5 = '2026-11-20T23:00:00Z'
+const R7 = '2026-11-24T20:00:00Z'
+
+const r = (at: number, percent: number, resetsAt: string) => ({ at, percent, resetsAt: Date.parse(resetsAt) })
+
+test('S1 forecast hit on 5h', async ($, on) => {
+	const seed = {
+		readings: {
+			'5h': [r(NOW - 20 * M, 80, R5), r(NOW - 10 * M, 85, R5), r(NOW, 90, R5)],
+			'7d': [r(NOW - 24 * H, 28, R7), r(NOW - 12 * H, 29, R7), r(NOW, 30, R7)],
+		},
+	}
+	setup($, on, NOW, () => [{ kind: 'five_hour', percentUsed: 90, resetsAt: R5 }, { kind: 'seven_day', percentUsed: 30, resetsAt: R7 }], seed)
+	await draw($, 'S1 hit on 5h. fed now 2026-11-20T20:00Z, 5h 90% resets 23:00Z, 7d 30% resets 2026-11-24T20:00Z')
+})
+
+test('S2 pace fine on both', async ($, on) => {
+	const seed = {
+		readings: {
+			'5h': [r(NOW - 20 * M, 20, R5), r(NOW - 10 * M, 21, R5), r(NOW, 22, R5)],
+			'7d': [r(NOW - 24 * H, 28, R7), r(NOW - 12 * H, 29, R7), r(NOW, 30, R7)],
+		},
+	}
+	setup($, on, NOW, () => [{ kind: 'five_hour', percentUsed: 22, resetsAt: R5 }, { kind: 'seven_day', percentUsed: 30, resetsAt: R7 }], seed)
+	await draw($, 'S2 fine on both. 5h 22% resets 23:00Z, 7d 30% resets 2026-11-24T20:00Z')
+})
+
+test('S3 not enough data', async ($, on) => {
+	setup($, on, NOW, () => [{ kind: 'five_hour', percentUsed: 12, resetsAt: R5 }, { kind: 'seven_day', percentUsed: 40, resetsAt: R7 }])
+	await draw($, 'S3a empty store, 5h 12%, 7d 40%')
+})
+
+test('S3b two readings only', async ($, on) => {
+	const seed = { readings: { '5h': [r(NOW - 10 * M, 12, R5), r(NOW, 14, R5)], '7d': [r(NOW - 12 * H, 38, R7), r(NOW, 40, R7)] } }
+	setup($, on, NOW, () => [{ kind: 'five_hour', percentUsed: 14, resetsAt: R5 }, { kind: 'seven_day', percentUsed: 40, resetsAt: R7 }], seed)
+	await draw($, 'S3b two readings per window, 5h 14%, 7d 40%')
+})
+
+test('S4 7d reset after the autumn daylight saving change', async ($, on) => {
+	const now = Date.parse('2026-10-31T21:00:00Z')
+	const reset = '2026-11-02T01:00:00Z'
+	const seed = {
+		readings: {
+			'5h': [],
+			'7d': [r(now - 24 * H, 27, reset), r(now - 12 * H, 51, reset), r(now, 75, reset)],
+		},
+	}
+	setup($, on, now, () => [{ kind: 'five_hour', percentUsed: 5, resetsAt: '2026-11-01T02:00:00Z' }, { kind: 'seven_day', percentUsed: 75, resetsAt: reset }], seed)
+	await draw($, 'S4 now 2026-10-31T21:00Z, 7d 75% resets 2026-11-02T01:00Z, rising 2 points per hour hits 100 at 2026-11-01T09:30Z')
+})
+
+const SEED7 = {
+	readings: {
+		'5h': [],
+		'7d': [r(NOW - 24 * H, 50, R7), r(NOW - 18 * H, 53, R7), r(NOW - 12 * H, 56, R7), r(NOW - 6 * H, 59, R7), r(NOW - 1 * H, 61.5, R7)],
+	},
+}
+
+test('S5 a 0.1 dip with the same resetsAt keeps the forecast', async ($, on) => {
+	let percent = 61.5
+	setup($, on, NOW, () => [{ kind: 'seven_day', percentUsed: percent, resetsAt: R7 }], structuredClone(SEED7))
+	await draw($, 'S5a before the dip, 7d 61.5%, 5 stored readings')
+	percent = 61.4
+	await turn($, 't1')
+	await draw($, 'S5b after turn.complete with 7d 61.4% (dip of 0.1), same resetsAt')
+})
+
+test('S6 a new resetsAt drops to not enough data', async ($, on) => {
+	let limit: Limit = { kind: 'seven_day', percentUsed: 61.5, resetsAt: R7 }
+	setup($, on, NOW, () => [limit], structuredClone(SEED7))
+	await draw($, 'S6a before, 7d 61.5%, 5 stored readings')
+	limit = { kind: 'seven_day', percentUsed: 3, resetsAt: '2026-11-27T20:00:00Z' }
+	await turn($, 't1')
+	await draw($, 'S6b after turn.complete with 7d 3% and resetsAt 2026-11-27T20:00Z')
+})
