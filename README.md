@@ -95,6 +95,10 @@ Studio 201 does not reload plugins itself. Run `/reload-plugins` after the updat
 - [Research](docs/research.md)
 - [Blueprint](docs/blueprint.html) and [pane design, pass 1](docs/design/pane-pass-1.html). These are HTML pages. Download and open them in a browser.
 
+## Type checking
+
+Run `tsc -p .` after Claude Code has loaded this folder as a mod. The engine then writes the types it checks against to `.claude-plugin/types/claude-code/index.d.ts`. That folder is gitignored, so a fresh clone fails with "File not found" until the engine has written it.
+
 ## License
 
 MIT
