@@ -230,7 +230,7 @@ function syncTotals(startedAt: number): void {
 }
 
 async function openPane($: EngineInterface): Promise<string> {
-	const opened = await $.ui.open({ id: PANE_ID, title: PANE_TITLE })
+	const opened = await $.ui.open({ id: PANE_ID, title: PANE_TITLE, backgroundColor: 'transparent' })
 	return opened.isPlaced ? 'Studio 201 pane open.' : `The pane could not open: ${opened.reason}`
 }
 
