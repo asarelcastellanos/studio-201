@@ -127,3 +127,32 @@ Result: the fresh path asks nothing, creates the two files, and a rerun changes 
 - The Old setup dialog text, Archive it, Delete it, the archive folder with RESTORE.md, CLAUDE.md reduced to the import, plugin dirs and hooks removed from settings.json, the ~/.codex/AGENTS.md link, and the second session without a prompt.
 - The session-start trigger itself (setup starting on its own in an interactive session). Case C used the command instead.
 - The pane screenshot named in the C1 proof line.
+
+## 2026-11-20 live install check (read-only, real Mac)
+
+Commands only read the real ~/.claude and the repo. Nothing was written there. Evidence from earlier sessions stays as accepted by the owner (D46).
+
+```
+$ claude plugin list
+  ❯ studio-201@studio-201
+    Version: 0.1.0
+    Read from: /Users/asarelcastellanos/Documents/studio-201
+    Scope: user
+    Status: ✔ enabled
+$ git rev-parse origin/release/v0.1 HEAD
+003e1f3490c2e031e0f51de2f2e32bd83a77983e
+003e1f3490c2e031e0f51de2f2e32bd83a77983e
+$ grep -A8 studio-201@studio-201 ~/.claude/plugins/installed_plugins.json
+  installPath ~/.claude/plugins/cache/studio-201/studio-201/0.1.0, version 0.1.0, gitCommitSha bf32fcaf (PR #56)
+$ cat ~/.claude/CLAUDE.md | head -3
+@/Users/asarelcastellanos/.claude/studio-201/AGENTS.md
+$ ls ~/.claude/studio-201/archive
+No such file or directory
+```
+
+Findings:
+- The plugin is installed and enabled at user scope, from the local clone, which is at origin/release/v0.1 (003e1f3).
+- The cached install copy is at bf32fca (F1, PR #56). Against the clone, `diff -rq` differs only in AGENTS.md, which PR #58 changed after the install. The version string is 0.1.0 in both.
+- ~/.claude/CLAUDE.md holds only the import line, as setup should leave it. ~/.claude/studio-201/AGENTS.md exists.
+- That rules copy is older than the repo AGENTS.md. It lacks the three PR #58 rules (colon, bold label, no-op test). `/studio update` or a restart after a refresh would bring it level. This is expected drift, not a fault in the claim.
+- No archive folder exists, so the owner chose Delete or the folder was removed. The prompt choice itself is not observable from disk.
