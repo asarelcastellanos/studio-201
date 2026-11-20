@@ -1,0 +1,77 @@
+$ gh project view 9 --owner asarelcastellanos
+
+  # Title                                                                     
+                                                                              
+  studio-201                                                                  
+                                                                              
+  ## Description                                                              
+                                                                              
+  --                                                                          
+                                                                              
+  ## Visibility                                                               
+                                                                              
+  Private                                                                     
+                                                                              
+  ## URL                                                                      
+                                                                              
+  https://github.com/users/asarelcastellanos/projects/9                       
+                                                                              
+  ## Item count                                                               
+                                                                              
+  0                                                                           
+                                                                              
+  ## Readme                                                                   
+                                                                              
+  --                                                                          
+                                                                              
+  ## Field Name (Field Type)                                                  
+                                                                              
+  Title (ProjectV2Field)                                                      
+                                                                              
+  Assignees (ProjectV2Field)                                                  
+                                                                              
+  Status (ProjectV2SingleSelectField)                                         
+                                                                              
+  Labels (ProjectV2Field)                                                     
+                                                                              
+  Linked pull requests (ProjectV2Field)                                       
+                                                                              
+  Milestone (ProjectV2Field)                                                  
+                                                                              
+  Repository (ProjectV2Field)                                                 
+                                                                              
+  Reviewers (ProjectV2Field)                                                  
+                                                                              
+  Parent issue (ProjectV2Field)                                               
+                                                                              
+  Sub-issues progress (ProjectV2Field)                                        
+                                                                              
+  Created (ProjectV2Field)                                                    
+                                                                              
+  Updated (ProjectV2Field)                                                    
+                                                                              
+  Closed (ProjectV2Field)                                                     
+                                                                              
+  Agent (ProjectV2SingleSelectField)                                          
+
+
+$ gh project field-list 9
+{"name":"Title","o":[]}
+{"name":"Assignees","o":[]}
+{"name":"Status","o":["Backlog","Ready","In progress","In review","QA","Done"]}
+{"name":"Labels","o":[]}
+{"name":"Linked pull requests","o":[]}
+{"name":"Milestone","o":[]}
+{"name":"Repository","o":[]}
+{"name":"Reviewers","o":[]}
+{"name":"Parent issue","o":[]}
+{"name":"Sub-issues progress","o":[]}
+{"name":"Created","o":[]}
+{"name":"Updated","o":[]}
+{"name":"Closed","o":[]}
+{"name":"Agent","o":["scout","researcher","reviewer","design-critic","qa-runner","coder","ui-builder","writer","mechanic","owner"]}
+
+$ repo linked projects
+[{"number":8,"title":"Studio 201"}]
+$ views
+[{"layout":"TABLE_LAYOUT","name":"View 1"}]
