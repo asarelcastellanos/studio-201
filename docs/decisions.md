@@ -207,6 +207,34 @@ Gave up: Keeping a personal setup active next to Studio 201.
 Replaces the parts of S8 and S9 that kept personal rules and only named two mods.
 Status: agreed.
 
+D48 and D49 are on `feature/product-board`. This group starts at D50 so both merge into release/v0.1 without clashing.
+
+**D50. `/studio update` runs from main or a `release/v*` branch.** It refuses any other branch. C17 and S7 say main only.
+Why: under D46 the clone tracks release/v0.1 until the first release merges into main, so a main-only update has nothing to pull.
+Gave up: the strict main-only rule until v0.1 reaches main.
+Status: default.
+
+**D51. `/studio update` prints a reload hint instead of trying `/reload-plugins`.** Replaces the reload attempt in D27.
+Why: a mod cannot run a built-in slash command, so the attempt always failed and the hint was the only path that worked.
+Status: default.
+
+**D52. The update tool asks before it runs, refreshes the rules copy without a version bump, and holds a lock.** The `studio_update` tool asks the owner first. It refreshes `~/.claude/studio-201/AGENTS.md` even when the plugin version did not change. A lock across sessions stops two updates from running at once.
+Why: an update changes ~/.claude. Rules edits often ship without a version bump. Two sessions updating at once can leave a half-written copy.
+Status: default.
+
+**D53. Read-only roles cannot write through Bash, and the policy toggle does not change that.** scout, researcher, reviewer and design-critic are refused Bash writes even when `/studio policy` is off. Extends D44, which covers the main session only.
+Why: AGENTS.md says these roles never write files. The toggle is for the main session's habit guard, not for role limits.
+Status: default.
+
+**D54. The comment check skips `docs/` and a shebang on line 1, and works line by line.** Replaces "no exceptions" in D35 for these cases. It does not parse code, so a `#` or `//` inside a string on its own line can be miscounted (the limits listed in PR #46).
+Why: docs are prose, and a shebang is required to run a script. A line check is short and catches every comment an agent writes by habit.
+Gave up: a parser per language.
+Status: default.
+
+**D55. The merge-into-main prompt ignores `/studio policy`, and an unknown branch counts as main.** The prompt runs even with the policy off. If the branch lookup fails, the merge is treated as a merge into main and asks. PR #52 cited D34 for the first part, but D34 does not say it.
+Why: merging into main is the step the owner asked to approve every time (C15). Asking by mistake costs one answer, and skipping by mistake could merge unreviewed work.
+Status: default.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
