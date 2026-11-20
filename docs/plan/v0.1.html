@@ -40,8 +40,8 @@ ul,ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
 
 <header style="display:flex;flex-direction:column;gap:10px">
   <h1>Studio 201 plan, v0.1</h1>
-  <p>How v0.1 gets built: what the pieces are, in what order, who builds each, and the technical choices I'd otherwise make silently. The approved spec says what. This page says how. Nothing gets built until you approve it.</p>
-  <p class="note">Status: waiting on your approval. 2026-11-19. Spec: <a href="https://github.com/asarelcastellanos/studio-201/blob/main/docs/spec/v0.1.md">docs/spec/v0.1.md</a>. Board: <a href="https://github.com/users/asarelcastellanos/projects/8/views/2">project 8</a>.</p>
+  <p>How v0.1 gets built: what the pieces are, in what order, who builds each, and the technical choices I'd otherwise make silently. The approved spec says what. This page says how.</p>
+  <p class="note">Status: approved 2026-11-19, revised at the restart (D32 to D43 in <a href="https://github.com/asarelcastellanos/studio-201/blob/main/docs/decisions.md">docs/decisions.md</a>). Spec: <a href="https://github.com/asarelcastellanos/studio-201/blob/main/docs/spec/v0.1.md">docs/spec/v0.1.md</a>. Board: <a href="https://github.com/users/asarelcastellanos/projects/8/views/2">project 8</a>.</p>
 </header>
 
 <section>
@@ -52,7 +52,7 @@ ul,ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
     <tbody>
       <tr><td>Agents</td><td>One markdown file per team role, each with its model and tool list.</td><td>C13</td></tr>
       <tr><td>The mod</td><td>TypeScript code that runs inside Claude Code. It draws the side pane, enforces the policy, and adds the <code>/studio</code> and <code>/board</code> commands.</td><td>C1, C4-C12, C14, C15, C17</td></tr>
-      <tr><td>Rules</td><td><code>AGENTS.md</code>: writing, git flow, decisions log, model roles. Read by Claude and Codex.</td><td>C2, C3, C16</td></tr>
+      <tr><td>Rules</td><td><code>AGENTS.md</code>: writing, git flow, decisions log, model roles. Read by Claude and Codex.</td><td>C2, C3, C16, C18</td></tr>
     </tbody>
   </table></div>
 <pre class="mermaid">
@@ -78,24 +78,26 @@ flowchart LR
   <h2>Build order</h2>
 <pre class="mermaid">
 flowchart LR
-  S["Step 0<br/>Spike: check 4 unknowns<br/>no code kept"] --> F5["F5 Team + policy<br/>feature/team-policy"]
+  S["Step 0<br/>Spike: done<br/>results in D27 to D30"] --> F5["F5 Team + policy<br/>feature/team-policy"]
   F5 --> F1["F1 Foundation<br/>feature/foundation"]
   F1 --> F3["F3 Board<br/>feature/product-board"]
   F3 --> F2["F2 Session meter<br/>feature/session-meter"]
   F2 --> F4["F4 Agents pane<br/>feature/agents-pane"]
-  F4 --> I{{"You: install on this Mac,<br/>screenshot, clean up ~/.claude"}}
+  F4 --> R["release/v0.1<br/>features merge here after review + QA"]
+  R --> M{{"You approve one merge into main"}}
+  M --> I{{"You: install on this Mac,<br/>screenshot, clean up ~/.claude"}}
 </pre>
-  <p>F5 first, because the agent files and branch rules guide all the work after it. F1 next, so install and update exist before there's anything visible to install. F3 before the pane, because the pane's Board link reads what setup saves. F2 and F4 build the pane, and F4 depends on F2's frame. Each feature merges into main only after you approve it, so you get 5 merges in v0.1.</p>
+  <p>F5 first, because the agent files and branch rules guide all the work after it. F1 next, so install and update exist before there's anything visible to install. F3 before the pane, because the pane's Board link reads what setup saves. F2 and F4 build the pane, and F4 depends on F2's frame. F5 also builds the minimal plugin frame (D40), because the policy hook can't run without it. Each issue squash merges into its feature branch. A feature that passes review and QA merges into <code>release/v0.1</code> with no stop. When all five are in, Claude opens <code>release/v0.1</code> into main with a review package and asks you to approve (C15), so v0.1 needs one approval from you.</p>
 </section>
 
 <section>
   <h2>Step 0: spike</h2>
-  <p>A scout agent (Haiku) and a researcher (Sonnet) check four things in about 30 minutes before any feature work. Nothing from the spike gets merged. Results go into <code>docs/decisions.md</code>.</p>
+  <p>Done. A scout agent (Haiku) and a researcher (Sonnet) checked four things before any feature work. Nothing from the spike was merged. The answers are in D27 to D30 in <code>docs/decisions.md</code>.</p>
   <ol>
-    <li>Can <code>/studio update</code> pull, update and reload the plugin by itself, or do you have to run <code>/reload-plugins</code> after?</li>
-    <li>Can the mod's code be split across several files under <code>src/</code>?</li>
-    <li>Can an agent take a real screenshot of the terminal pane, or only a text render from the plugin test kit?</li>
-    <li>Does Codex read a global <code>~/.codex/AGENTS.md</code>?</li>
+    <li>Can <code>/studio update</code> pull, update and reload the plugin by itself, or do you have to run <code>/reload-plugins</code> after? It runs the update, then tries <code>/reload-plugins</code>. If that fails, it prints the command for you to run (D27).</li>
+    <li>Can the mod's code be split across several files under <code>src/</code>? Yes, with static <code>import</code> statements and one entry file (D28).</li>
+    <li>Can an agent take a real screenshot of the terminal pane, or only a text render from the plugin test kit? Only the text render. Real screenshots stay a step for you (D29).</li>
+    <li>Does Codex read a global <code>~/.codex/AGENTS.md</code>? Yes, then the repo's <code>AGENTS.md</code> (D30).</li>
   </ol>
 </section>
 
@@ -107,8 +109,9 @@ flowchart LR
     <tbody>
       <tr><td>F5</td><td>#19 C13 agent files with pinned models</td><td>Writer · Sonnet</td><td>Reviewer, QA runner</td></tr>
       <tr><td>F5</td><td>#20 C14 main session can't write code</td><td>Coder · Sonnet</td><td>Reviewer, QA runner</td></tr>
-      <tr><td>F5</td><td>#21 C15 only you merge to main</td><td>Coder · Sonnet</td><td>Reviewer, QA runner</td></tr>
+      <tr><td>F5</td><td>#21 C15 merges into main ask you</td><td>Coder · Sonnet</td><td>Reviewer, QA runner</td></tr>
       <tr><td>F5</td><td>#22 C16 branch flow rules</td><td>Writer · Sonnet</td><td>Reviewer</td></tr>
+      <tr><td>F5</td><td>#43 C18 no-comments check</td><td>Coder · Sonnet</td><td>Reviewer, QA runner</td></tr>
       <tr><td>F1</td><td>#6 C1 install and first-run setup</td><td>Coder · Sonnet</td><td>Reviewer, QA runner</td></tr>
       <tr><td>F1</td><td>#7 C2 AGENTS.md shared with Codex</td><td>Writer · Sonnet</td><td>QA runner</td></tr>
       <tr><td>F1</td><td>#8 C3 decisions log rule</td><td>Writer · Sonnet</td><td>Reviewer</td></tr>
@@ -117,14 +120,14 @@ flowchart LR
       <tr><td>F3</td><td>#15 C9 Board link and /board</td><td>Coder · Sonnet</td><td>QA runner</td></tr>
       <tr><td>F2</td><td>#10 C4 pane frame, session, context, policy</td><td>Coder · Sonnet</td><td>Reviewer, QA runner</td></tr>
       <tr><td>F2</td><td>#11 C5 usage and reset times</td><td>Coder · Sonnet</td><td>QA runner</td></tr>
-      <tr><td>F2</td><td>#12 C6 forecast</td><td>Check writer writes the test first, then Coder · Sonnet</td><td>Reviewer, QA runner</td></tr>
+      <tr><td>F2</td><td>#12 C6 forecast</td><td>Coder · Sonnet, writes the test first</td><td>Reviewer, QA runner</td></tr>
       <tr><td>F2</td><td>#13 C7 not enough data</td><td>Coder · Sonnet</td><td>QA runner</td></tr>
       <tr><td>F4</td><td>#16 C10 running agents, top 5</td><td>Coder · Sonnet</td><td>Reviewer, QA runner</td></tr>
       <tr><td>F4</td><td>#17 C11 finished agents hidden</td><td>Coder · Sonnet</td><td>QA runner</td></tr>
       <tr><td>F4</td><td>#18 C12 click to view transcript</td><td>Coder · Sonnet</td><td>QA runner</td></tr>
     </tbody>
   </table></div>
-  <p class="note">Opus (this session) writes each brief, moves the cards, and opens the feature PRs. It writes no code. Haiku does lookups and mechanical edits along the way.</p>
+  <p class="note">Opus (this session) writes each brief, moves the cards and opens the PRs, and writes no code. QA closes each issue with its evidence. Haiku does lookups and mechanical edits.</p>
 </section>
 
 <section>
@@ -134,27 +137,30 @@ flowchart LR
     <tbody>
       <tr class="dir"><td class="path">.claude-plugin/</td><td></td></tr>
       <tr><td class="path">marketplace.json</td><td>Makes the repo a marketplace listing one plugin, <code>studio-201</code>.</td></tr>
-      <tr><td class="path">plugin.json</td><td>The plugin's name, version and description. The version shows in <code>/studio update</code>.</td></tr>
+      <tr><td class="path">plugin.json</td><td>The plugin's name, version and description. The version shows in <code>/studio update</code>. Comes in F5.</td></tr>
       <tr class="dir"><td class="path">agents/</td><td>C13</td></tr>
-      <tr><td class="path">scout.md, researcher.md, reviewer.md, design-critic.md, qa-runner.md, check-writer.md, coder.md, ui-builder.md, writer.md, mechanic.md</td><td>One role each, with its model and tools.</td></tr>
+      <tr><td class="path">scout.md, researcher.md, reviewer.md, design-critic.md, qa-runner.md, coder.md, ui-builder.md, writer.md, mechanic.md</td><td>One role each, with its model and tools.</td></tr>
       <tr class="dir"><td class="path">hooks/</td><td></td></tr>
-      <tr><td class="path">hooks.json</td><td>Points Claude Code at the mod's entry file.</td></tr>
-      <tr><td class="path">register.tsx</td><td>The entry file. Wires each part below to Claude Code events.</td></tr>
+      <tr><td class="path">hooks.json</td><td>Points Claude Code at the mod's entry file. Comes in F5.</td></tr>
+      <tr><td class="path">register.tsx</td><td>The entry file. Wires each part below to Claude Code events. Comes in F5.</td></tr>
       <tr class="dir"><td class="path">src/</td><td>The mod's parts, if the spike confirms it can be split</td></tr>
       <tr><td class="path">pane.tsx</td><td>Draws the side pane: header, sections, collapsing lists.</td></tr>
       <tr><td class="path">usage.ts</td><td>Reads session, context and limit numbers.</td></tr>
       <tr><td class="path">forecast.ts</td><td>Takes readings and predicts when a limit is hit, in Pacific time.</td></tr>
       <tr><td class="path">agents.ts</td><td>Tracks running and finished agents and their run times.</td></tr>
-      <tr><td class="path">policy.ts</td><td>Refuses code edits in the main session and merges into main.</td></tr>
+      <tr><td class="path">policy.ts</td><td>Refuses code edits in the main session and asks you before a merge into main.</td></tr>
       <tr><td class="path">setup.ts</td><td>First-run setup: adds the rules import and turns off the workbench mods.</td></tr>
       <tr><td class="path">update.ts</td><td><code>/studio update</code>.</td></tr>
       <tr><td class="path">board.ts</td><td>Reads the board URL, the Board link and <code>/board</code>.</td></tr>
       <tr class="dir"><td class="path">types/</td><td></td></tr>
       <tr><td class="path">index.d.ts</td><td>The shapes of the values the pane keeps.</td></tr>
       <tr class="dir"><td class="path">tests/</td><td></td></tr>
-      <tr><td class="path">forecast.test.ts</td><td>The one automated test (C6): midnight, week boundary, daylight saving.</td></tr>
+      <tr><td class="path">forecast.test.ts</td><td>The one unit test (C6): midnight, week boundary, daylight saving.</td></tr>
       <tr class="dir"><td class="path">scripts/</td><td></td></tr>
       <tr><td class="path">new-project.sh</td><td>C8: asks public or private, creates the board with its columns, fields and views, links it, and saves the URL.</td></tr>
+      <tr><td class="path">check-comments.sh</td><td>Fails a change that adds a code comment (C18).</td></tr>
+      <tr class="dir"><td class="path">vendor/</td><td></td></tr>
+      <tr><td class="path">SOURCES.md</td><td>Source repo, commit and license for each adapted role file.</td></tr>
       <tr class="dir"><td class="path">qa/v0.1/</td><td>Evidence per claim: screenshots and text renders, linked from each issue.</td></tr>
       <tr class="dir"><td class="path">(root)</td><td></td></tr>
       <tr><td class="path">AGENTS.md</td><td>Shared rules for Claude and Codex.</td></tr>
@@ -162,6 +168,11 @@ flowchart LR
       <tr><td class="path">.studio/config.json</td><td>This repo's own board URL, written by the setup script.</td></tr>
     </tbody>
   </table></div>
+</section>
+
+<section>
+  <h2>Role files</h2>
+  <p>The nine roles are scout, researcher, reviewer, design-critic, qa-runner, coder, ui-builder, writer and mechanic. Each is modeled on the sources listed in <a href="https://github.com/asarelcastellanos/studio-201/blob/main/docs/research.md">docs/research.md</a> under "Role file sources". All of them read a shared worker contract first, adapted from pstack's <code>worker.md</code>.</p>
 </section>
 
 <section>
@@ -175,7 +186,7 @@ flowchart LR
       <tr><td>Usage and limits</td><td>Claude Code gives mods the context fill, cost, and 5h and 7d percent with reset time. The mod takes a reading each turn.</td></tr>
       <tr><td>Forecast</td><td>Readings are kept on this Mac across sessions, about 7 days' worth. A straight line through recent readings gives the time 100% is reached, compared with the reset time.</td></tr>
       <tr><td>Agents</td><td>Claude Code lists each agent with its model, start time and tokens. The mod records finish times itself. Clicking an agent asks Claude Code to show its transcript.</td></tr>
-      <tr><td>Policy</td><td>The mod sees every tool call before it runs. It refuses file edits from the main session and any <code>gh pr merge</code> or <code>git push</code> that targets main.</td></tr>
+      <tr><td>Policy</td><td>The mod sees every tool call before it runs. It refuses code edits from the main session (any file except <code>.md</code> and the scratchpad). For a merge into main it asks you with a permission prompt when the main session runs it, and refuses it from a subagent.</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -189,10 +200,10 @@ flowchart LR
     <div class="k"><div><span class="lbl">K3 · How rules reach every project</span><span class="rec">Setup copies AGENTS.md into ~/.claude and imports it from there. Update refreshes the copy.</span><span>Alternative: import straight from the plugin's install folder.</span></div><div><span class="lbl">For</span>The path stays fixed across versions.</div><div><span class="lbl">Against</span>One copied file to keep in sync. Update handles it.</div></div>
     <div class="k"><div><span class="lbl">K4 · First-run setup</span><span class="rec">Runs on the first session after install and asks you once before changing ~/.claude or turning off the workbench mods.</span><span>Alternative: a manual <code>/studio setup</code>.</span></div><div><span class="lbl">For</span>Install stays one step (C1). You still confirm.</div><div><span class="lbl">Against</span>A prompt at the start of that one session.</div></div>
     <div class="k"><div><span class="lbl">K5 · Where forecast readings live</span><span class="rec">On each Mac, inside Claude Code's mod storage.</span><span>Alternative: a file in the repo.</span></div><div><span class="lbl">For</span>No files to commit, nothing private in a public repo.</div><div><span class="lbl">Against</span>Each Mac learns its own pace. The percent itself is account-wide.</div></div>
-    <div class="k"><div><span class="lbl">K6 · QA evidence for the pane</span><span class="rec">Agents capture a text render of the pane from the plugin test kit. You take one real screenshot per feature at merge review.</span><span>Alternative: agents take real screenshots, if the spike shows they can.</span></div><div><span class="lbl">For</span>Works without giving agents screen recording access.</div><div><span class="lbl">Against</span>Five screenshots from you during v0.1.</div></div>
+    <div class="k"><div><span class="lbl">K6 · QA evidence for the pane</span><span class="rec">Agents capture a text render of the pane from the plugin test kit. You take one real screenshot per feature at the release review.</span><span>Alternative: agents take real screenshots, if the spike shows they can.</span></div><div><span class="lbl">For</span>Works without giving agents screen recording access.</div><div><span class="lbl">Against</span>Five screenshots from you at the release review.</div></div>
     <div class="k"><div><span class="lbl">K7 · Where evidence is stored</span><span class="rec">In <code>qa/v0.1/</code> in the repo, linked from each issue.</span><span>Alternative: attached to issue comments only.</span></div><div><span class="lbl">For</span>Versioned with the code. Survives a Mac cleanup.</div><div><span class="lbl">Against</span>Images add weight to the repo over time.</div></div>
     <div class="k"><div><span class="lbl">K8 · Policy enforcement</span><span class="rec">Inside the mod, on every tool call.</span><span>Alternative: shell hooks in settings.</span></div><div><span class="lbl">For</span>One install, no settings edits, same code as the pane.</div><div><span class="lbl">Against</span>Turning the mod off turns the policy off too.</div></div>
-    <div class="k"><div><span class="lbl">K9 · How merges to main are caught</span><span class="rec">Match <code>gh pr merge</code> on a PR whose base is main, and <code>git push</code> to main.</span><span>Alternative: GitHub branch protection.</span></div><div><span class="lbl">For</span>Works even though agents act as you.</div><div><span class="lbl">Against</span>Pattern matching. An agent calling the GitHub API directly would slip past. Branch protection can be added later as a second layer.</div></div>
+    <div class="k"><div><span class="lbl">K9 · How merges to main are caught</span><span class="rec">Match <code>gh pr merge</code> on a PR whose base is main, and <code>git push</code> to main.</span><span>Alternative: GitHub branch protection.</span></div><div><span class="lbl">For</span>Works even though agents act as you.</div><div><span class="lbl">Against</span>Pattern matching, so an unusual command shape could slip past. Branch protection can be added later as a second layer. The hook asks you instead of refusing (D34). <code>gh api</code> merge calls are matched too.</div></div>
     <div class="k"><div><span class="lbl">K10 · Guardrails during the build</span><span class="rec">The workbench's policy stays on until you install Studio 201 at the end.</span><span>Alternative: install each feature as it merges.</span></div><div><span class="lbl">For</span>Never zero guardrails, never two at once.</div><div><span class="lbl">Against</span>You only see Studio 201 live at the end. Feature QA happens through test renders until then.</div></div>
   </div>
 </section>
@@ -207,6 +218,7 @@ flowchart LR
       <tr><td>The mod API changes in a Claude Code update</td><td><code>plugin.json</code> records the Claude Code version it was built against. A failed load shows in the transcript.</td></tr>
       <tr><td>No limit reading until the first reply</td><td>The pane shows "no reading yet" (C7).</td></tr>
       <tr><td>Workbench and Studio 201 both active</td><td>Setup turns the workbench mods off (S9). If you decline, the pane warns once.</td></tr>
+      <tr><td>The hook's ask prompt doesn't fire for some command shape</td><td>That shape is refused instead, and you merge from GitHub.</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -216,8 +228,8 @@ flowchart LR
   <div class="box">
     <ol>
       <li>Approve this plan, or change any decision card.</li>
-      <li>Merge 5 feature PRs into main, one per feature, after reading each receipt.</li>
-      <li>Take one screenshot per feature at merge review (K6).</li>
+      <li>Approve one merge of <code>release/v0.1</code> into main, after reviewing the evidence.</li>
+      <li>Take five screenshots at that review, one per feature (K6).</li>
       <li>At the end, install Studio 201, check the pane, then clean up <code>~/.claude</code>.</li>
     </ol>
   </div>

@@ -121,7 +121,6 @@ flowchart TB
     qa["QA runner · Sonnet"]
   end
   subgraph write["Write, one per task, own worktree"]
-    checks["Check writer · Sonnet"]
     coder["Coder · Sonnet"]
     ui["UI builder · Sonnet"]
     docs["Docs + PR writer · Sonnet"]
@@ -192,7 +191,6 @@ flowchart LR
       <tr><td class="path">reviewer.md</td><td>Sonnet. Checks every claim has evidence, then quality. A finding needs a repro.</td></tr>
       <tr><td class="path">design-critic.md</td><td>Sonnet. Looks at screenshots, runs the slop detector, files findings.</td></tr>
       <tr><td class="path">qa-runner.md</td><td>Sonnet. Runs the real app or data, saves evidence, closes issues.</td></tr>
-      <tr><td class="path">check-writer.md</td><td>Sonnet. Writes QA scripts from the spec before code, and tests only when flagged.</td></tr>
       <tr><td class="path">coder.md</td><td>Sonnet. Implements one issue in its own worktree. Can't edit spec or checks.</td></tr>
       <tr><td class="path">ui-builder.md</td><td>Sonnet. Builds UI from DESIGN.md with the platform design skill loaded.</td></tr>
       <tr><td class="path">writer.md</td><td>Sonnet. READMEs, docs, changelogs and receipt PRs.</td></tr>
