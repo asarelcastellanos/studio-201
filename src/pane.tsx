@@ -1,24 +1,29 @@
 import type { Elements } from 'claude-code'
 
-import { formatBar, formatCost, formatDuration, formatTokens, modelKey, modelLabel } from './usage'
+import { formatBar, formatClock, formatCost, formatTokens, modelKey, modelLabel } from './usage'
 
 export type PaneData = {
 	model: string
 	policyOn: boolean
 	byModel: ReadonlyMap<string, number>
-	elapsedMs: number
+	startedAt: number
 	tokens: number
-	costUsd: number | undefined
+	cost: { usd: number; hasUnknownPrice?: true } | undefined
 	context: { tokens?: number; window: number; percent?: number }
 }
 
 type Ui = Pick<Elements['terminal'], 'Box' | 'Text'>
 
 const BAR_WIDTH = 10
-const NAME_WIDTH = 7
+const NAME_WIDTH = 9
 
 function heading(label: string): string {
 	return `── ${label} ${'─'.repeat(Math.max(2, 16 - label.length))}`
+}
+
+function costLine(cost: PaneData['cost']): string {
+	if (cost === undefined) return 'no cost yet'
+	return cost.usd === 0 ? 'no charge' : `est. ${formatCost(cost.usd)}`
 }
 
 export function renderPane(ui: Ui, data: PaneData, board?: JSX.Element) {
@@ -34,9 +39,10 @@ export function renderPane(ui: Ui, data: PaneData, board?: JSX.Element) {
 			</Box>
 			<Text> </Text>
 			<Text dimColor>{heading('Session')}</Text>
-			<Text>{formatDuration(data.elapsedMs)}</Text>
-			<Text>{formatTokens(data.tokens)} tokens</Text>
-			<Text>{data.costUsd === undefined ? 'no cost yet' : formatCost(data.costUsd)}</Text>
+			<Text>since {formatClock(data.startedAt)}</Text>
+			<Text>{formatTokens(data.tokens)} since load</Text>
+			<Text>{costLine(data.cost)}</Text>
+			{data.cost?.hasUnknownPrice === true ? <Text>unknown model price</Text> : null}
 			<Text> </Text>
 			<Text dimColor>{heading('Context')}</Text>
 			{percent === undefined ? (

@@ -35,6 +35,7 @@ const USAGE = 'Usage: /studio opens the pane, /studio policy [on|off], /studio s
 const PANE_ID = 'studio-201'
 const PANE_TITLE = 'Studio 201'
 const totals: Totals = new Map()
+let lastStartedAt: number | undefined
 const UPDATE_TOOL = 'studio_update'
 const UPDATE_TOOL_ID = 'mcp__studio-201__studio_update'
 const UPDATE_ASK_REASON = 'studio-201: this pulls the clone and reinstalls Studio 201. Approve or decline.'
@@ -221,6 +222,11 @@ async function updateStudio($: EngineInterface): Promise<{ ok: boolean; text: st
 	}
 }
 
+function syncTotals(startedAt: number): void {
+	if (lastStartedAt !== undefined && lastStartedAt !== startedAt) totals.clear()
+	lastStartedAt = startedAt
+}
+
 async function openPane($: EngineInterface): Promise<string> {
 	const opened = await $.ui.open({ id: PANE_ID, title: PANE_TITLE })
 	return opened.isPlaced ? 'Studio 201 pane open.' : `The pane could not open: ${opened.reason}`
@@ -366,23 +372,35 @@ export const register: Register = on => {
 
 	on('turn.complete', async ($, e, next) => {
 		if (e.usage !== undefined) {
+			syncTotals((await $.session.usage()).startedAt)
 			addTurn(totals, e.usage.model, e.usage)
-			$.ui.invalidate('ui.render')
 		}
+		$.ui.invalidate('ui.render')
 		return next(e)
-	}).catch(($, e, next) => next(e))
+	}).catch(($, e, next) => {
+		$.ui.invalidate('ui.render')
+		return next(e)
+	})
 
 	on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
-		const usage = await $.session.usage()
+		const usage = await $.session.usage({ breakdown: 'summary' })
+		syncTotals(usage.startedAt)
+		const breakdown = usage.context.breakdown
 		return renderPane($.ui.resolve(e), {
 			model: await $.session.model(),
 			policyOn: await read($, policyAtom),
 			byModel: totals,
-			elapsedMs: (await $.clock.now()) - usage.startedAt,
+			startedAt: usage.startedAt,
 			tokens: sumTokens(totals),
-			costUsd: usage.cost?.usd,
-			context: usage.context,
+			cost: usage.cost,
+			context:
+				breakdown === undefined
+					? usage.context
+					: { tokens: breakdown.totalTokens, window: breakdown.rawMaxTokens, percent: breakdown.percentage },
 		})
+	}).catch(($, e) => {
+		const { Text } = $.ui.resolve(e)
+		return <Text>studio: pane failed to draw.</Text>
 	})
 
 	on('tool.run', { tool: UPDATE_TOOL_ID }, async $ => {

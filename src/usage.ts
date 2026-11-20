@@ -15,16 +15,28 @@ export function sumTokens(totals: Totals): number {
 	return sum
 }
 
+const FAMILY = '(opus|sonnet|haiku)'
+const VERSION = '(\\d+(?:-\\d+)?)'
+
+function parseModel(model: string): { family: string; version: string } | undefined {
+	const id = model.replace(/-\d{8}$/, '')
+	const match = new RegExp(`${FAMILY}-${VERSION}(?!\\d)`, 'i').exec(id)
+	if (match?.[1] !== undefined && match[2] !== undefined) return { family: match[1], version: match[2] }
+	const old = new RegExp(`${VERSION}-${FAMILY}`, 'i').exec(id)
+	if (old?.[1] !== undefined && old[2] !== undefined) return { family: old[2], version: old[1] }
+	return undefined
+}
+
 export function modelKey(model: string): string {
-	const family = /(opus|sonnet|haiku)/i.exec(model)?.[1]
-	return family === undefined ? model : family.toLowerCase()
+	const parsed = parseModel(model)
+	return parsed === undefined ? model : `${parsed.family.toLowerCase()} ${parsed.version.replace('-', '.')}`
 }
 
 export function modelLabel(model: string): string {
-	const match = /(opus|sonnet|haiku)-(\d+(?:-\d+)?)/i.exec(model)
-	if (match === null || match[1] === undefined || match[2] === undefined) return model
-	const family = match[1].toLowerCase()
-	return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${match[2].replace('-', '.')}`
+	const parsed = parseModel(model)
+	if (parsed === undefined) return model
+	const family = parsed.family.toLowerCase()
+	return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${parsed.version.replace('-', '.')}`
 }
 
 export function formatTokens(count: number): string {
@@ -41,12 +53,15 @@ export function formatCost(usd: number): string {
 	return `$${usd.toFixed(2)}`
 }
 
-export function formatDuration(ms: number): string {
-	const seconds = Math.max(0, Math.floor(ms / 1000))
-	if (seconds < 60) return `${seconds}s`
-	const minutes = Math.floor(seconds / 60)
-	if (minutes < 60) return `${minutes}m`
-	return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`
+const CLOCK = new Intl.DateTimeFormat('en-US', {
+	timeZone: 'America/Los_Angeles',
+	hour: 'numeric',
+	minute: '2-digit',
+	hour12: true,
+})
+
+export function formatClock(at: number): string {
+	return CLOCK.format(at)
 }
 
 export function formatBar(percent: number, width: number): string {
