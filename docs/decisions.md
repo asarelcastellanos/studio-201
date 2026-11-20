@@ -196,6 +196,11 @@ Why: ponytail is MIT and gives a short rule for the smallest complete change. ac
 Gave up: accessibility rules in our own words until 0.3.
 Status: agreed.
 
+**D46. Install from the local clone right after F1.** Once F5 and F1 are in release/v0.1, I install Studio 201 from my local clone (`claude plugin marketplace add ~/Documents/studio-201`, then `/plugin install studio-201`) after cleaning up ~/.claude myself. F3, F2 and F4 are then built with Studio 201 instead of the workbench. Replaces K10 in plan/v0.1.md.
+Why: tests the real install earlier, with Studio 201 guarding its own build.
+Gave up: until release/v0.1 reaches main, `/studio update` has nothing new to pull, so I update with `git pull` in the clone.
+Status: agreed.
+
 **D47. Setup replaces existing rules, mods and hooks, agents and skills.** After install, Claude always runs on Studio 201, so setup handles whatever was there before. It looks at three groups: rules (`~/.claude/CLAUDE.md` content other than our import line, and a `~/.codex/AGENTS.md` that is not our link), mods and hooks (every entry in `env.CLAUDE_CODE_PLUGIN_DIRS` and the `hooks` key in `settings.json`), and agents and skills (the contents of `~/.claude/agents/`, `skills/` and `commands/`). If it finds none, it installs and asks nothing. If it finds any, it lists them and asks one question with two answers. "Archive it" moves each item to `~/.claude/studio-201/archive/<date-time>/` at the same relative path and writes a `RESTORE.md` that says how to put it back. "Delete it" removes the items for good. Neither answer keeps the old setup active. Dismissing the question changes nothing, and setup asks again next session. Credentials, other settings keys, other plugins, MCP connectors, projects, memory and history are never touched.
 Why: Claude must run on Studio 201 after install, so nothing competing stays active.
 Gave up: Keeping a personal setup active next to Studio 201.
