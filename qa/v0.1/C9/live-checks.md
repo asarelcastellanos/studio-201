@@ -7,3 +7,7 @@ Result: VERIFIED.
 - live-header.png (2.06.44 PM). The pane header shows "Board" and https://github.com/users/asarelcastellanos/projects/8.
 - live-board.png (2.07.30 PM). The link opens the GitHub project "Studio 201" board at github.com/users/asarelcastellanos/projects/8.
 - live-board-command.png (2.07.49 PM). `/board` prints "studio-201: https://github.com/users/asarelcastellanos/projects/8", the same URL as the pane header.
+
+## Header after D97 (2026-11-20, 2:40 PM)
+
+- live-board-button.png. The pane header now shows only "Board" with no URL (D97). Same screenshot as C10/live-wide.png.
