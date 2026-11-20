@@ -402,3 +402,8 @@ Status: default.
 Why: a Button is one short line on every terminal, and the URL stays reachable from the toast and `/board`.
 Gave up: a clickable link on terminals that support OSC 8, and `start` on Windows.
 Status: default.
+
+**D98. An agent is finished only when its status says it ended.** The mod no longer adds an agent to the finished list when `classic.SubagentStop` fires. An agent counts as finished only when `$.agent.list()` reports status completed, failed or killed. An agent whose status is waiting or idle stays in the running list. An agent already in the finished list that the list reports in any other status moves back to running, because the engine says a message may resume an ended agent under the same id. The pane also redraws when an agent's turn starts, which is when a finished background shell wakes an agent. This changes D92.
+Why: `AgentInfo` has no field for an agent's shells. Its `waiting` status is documented as waiting on background work the agent owns, and `SubagentStop` fires when a turn ends, not when the shells end. `SubagentStopHookInput.background_tasks` lists the session's in-flight work, not one agent's, so it cannot say which agent a shell belongs to. Forcing the stopped id into the finished list marked agents the Claude Code footer shows as waiting on a shell.
+Gave up: an agent whose status is completed while a shell still runs would show as finished. The types give no way to tell, so the mod trusts the status.
+Status: default.
