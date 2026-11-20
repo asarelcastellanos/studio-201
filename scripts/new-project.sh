@@ -52,8 +52,28 @@ else
   rest_base="users/$(jq -r .id <<<"$owner_info")"
 fi
 
-project=$(gh project list --owner "$owner" --limit 200 --format json \
-  | jq -c --arg title "$name" '[.projects[] | select(.title == $title)][0] // empty')
+linked_projects=$(gh api graphql -f owner="$owner" -f name="$name" -f query='
+query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) { projectsV2(first: 100) { nodes { id number title url } } }
+}' -q '[.data.repository.projectsV2.nodes[] | {id, number, title, url}]')
+project=""
+linked_count=$(jq length <<<"$linked_projects")
+if [ "$linked_count" = 1 ]; then
+  project=$(jq -c '.[0]' <<<"$linked_projects")
+elif [ "$linked_count" -gt 1 ]; then
+  project=$(jq -c --arg name "$name" '
+    def norm: ascii_downcase | gsub("[ -]"; "");
+    [.[] | select((.title | norm) == ($name | norm))] | if length == 1 then .[0] else empty end' <<<"$linked_projects")
+  if [ -z "$project" ]; then
+    echo "Several projects are linked to $repo. Keep one linked, or title one $name:" >&2
+    jq -r '.[] | "  #\(.number) \(.title) \(.url)"' <<<"$linked_projects" >&2
+    exit 2
+  fi
+fi
+if [ -z "$project" ]; then
+  project=$(gh project list --owner "$owner" --limit 200 --format json \
+    | jq -c --arg title "$name" '[.projects[] | select(.title == $title)][0] // empty')
+fi
 created=0
 if [ -z "$project" ]; then
   created=1
@@ -99,11 +119,27 @@ has_field() {
   jq -e --arg n "$1" 'any(.fields[]; .name == $n)' <<<"$fields" >/dev/null
 }
 
-has_field Agent || gh project field-create "$number" --owner "$owner" --name Agent \
-  --data-type SINGLE_SELECT \
-  --single-select-options "scout,researcher,reviewer,design-critic,qa-runner,coder,ui-builder,writer,mechanic,owner" >/dev/null
-has_field Type || gh project field-create "$number" --owner "$owner" --name Type \
-  --data-type SINGLE_SELECT --single-select-options "feature,claim,task" >/dev/null
+missing_options() {
+  jq -r --arg n "$1" --arg want "$2" '[($want | split(",")[]) as $o | select(([.fields[] | select(.name == $n) | .options[]?.name] | index($o)) == null) | $o] | join(", ")' <<<"$fields"
+}
+
+agent_wanted="scout,researcher,reviewer,design-critic,qa-runner,coder,ui-builder,writer,mechanic,owner"
+kind_wanted="feature,claim,task"
+
+if has_field Agent; then
+  agent_missing=$(missing_options Agent "$agent_wanted")
+  [ -z "$agent_missing" ] || echo "Agent is missing options: $agent_missing. Left unchanged to keep item values."
+else
+  gh project field-create "$number" --owner "$owner" --name Agent \
+    --data-type SINGLE_SELECT --single-select-options "$agent_wanted" >/dev/null
+fi
+if has_field Kind; then
+  kind_missing=$(missing_options Kind "$kind_wanted")
+  [ -z "$kind_missing" ] || echo "Kind is missing options: $kind_missing. Left unchanged to keep item values."
+else
+  gh project field-create "$number" --owner "$owner" --name Kind \
+    --data-type SINGLE_SELECT --single-select-options "$kind_wanted" >/dev/null
+fi
 has_field Version || gh project field-create "$number" --owner "$owner" --name Version \
   --data-type TEXT >/dev/null
 
@@ -118,11 +154,7 @@ if [ "$has_board_view" != "true" ]; then
   fi
 fi
 
-linked=$(gh api graphql -f owner="$owner" -f name="$name" -f query='
-query($owner: String!, $name: String!) {
-  repository(owner: $owner, name: $name) { projectsV2(first: 100) { nodes { number } } }
-}' -q '.data.repository.projectsV2.nodes[].number')
-if ! grep -qx "$number" <<<"$linked"; then
+if ! jq -e --argjson n "$number" 'any(.[]; .number == $n)' <<<"$linked_projects" >/dev/null; then
   gh project link "$number" --owner "$owner" --repo "$repo" >/dev/null
 fi
 
