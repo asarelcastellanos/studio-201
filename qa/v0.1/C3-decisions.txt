@@ -1,0 +1,33 @@
+C3: decisions are logged in docs/decisions.md
+Source: origin/feature/foundation at c3b5cbc
+
+$ sed -n "/^## Decisions/,/^## Delegation/p" AGENTS.md
+## Decisions
+
+- When you make a conceptual decision or a major assumption that your brief doesn't cover, report it under "Decisions and assumptions" in your final report. Give the framing, the options, the pros and cons, and the status.
+- The orchestrator adds each reported decision to the project's `docs/decisions.md`, and creates the file if it is missing.
+- Append entries. Never rewrite one.
+- Record a change as a new entry that names the entry it replaces.
+
+## Delegation
+
+$ grep -o "^\*\*D[0-9]*\." docs/decisions.md   (decision numbers present)
+D1 D2 D3 D4 D5 D6 D7 D8 D9 D10 D11 D12 D13 D14 D15 D16 D17 D18 D19 D20 D21 D22 D23 D24 D25 D26 D27 D28 D29 D30 D31 D32 D33 D34 D35 D36 D37 D38 D39 D40 
+
+$ count and gaps
+40 entries, D1 to D40
+
+$ grep -n "^## " docs/decisions.md
+7:## 2026-11-19: Founding decisions
+172:## Spec assumptions, v0.1
+176:## Pane assumptions, design pass 1
+
+$ D12 (the rule that creates the log)
+**D12. Log conceptual decisions and major assumptions** with the framing, options, pros and cons, in this file.
+Why: agents make decisions without saying so. I want to see the thinking so I can agree or argue.
+
+$ trial-time decisions that name what they replace (appended entries)
+164:**D39. A light policy instead of the allowlist.** The main session's Edit and Write on any file outside notes, plans and temp dirs are refused, merges and pushes to main are checked by plain string matching, and delegation is a judgment rule in AGENTS.md. Read-only roles keep their tool lists, and shell writes are an instruction, not a check. Replaces D34 and the shell part of D32. Heredoc lines that start with `gh pr merge` or `git push origin main` can be refused, a known false positive.
+169:**D40. D39 replaces D32's shell part, D34, and D38.** The light policy doesn't look up agent roles or check `gh pr edit`, and read-only shell writes are an instruction.
+
+Result: pass. AGENTS.md has the Decisions rule: report framing, options, pros and cons, status; the orchestrator appends to docs/decisions.md; entries are appended, and a change is a new entry that names the one it replaces. docs/decisions.md holds D1 to D40 plus the spec and pane assumption tables (S1-S9, A1-A11). D39 and D40 show the replace-by-new-entry rule in use.

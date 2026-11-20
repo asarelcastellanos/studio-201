@@ -1,0 +1,25 @@
+C2 repo part: shared rules live in AGENTS.md and CLAUDE.md imports them
+Source: origin/feature/foundation at c3b5cbc
+
+$ cat CLAUDE.md
+@AGENTS.md
+
+$ grep -c "^@AGENTS.md$" CLAUDE.md
+1
+
+$ grep -n "^#" AGENTS.md
+1:# Studio 201 agent rules
+7:## Writing
+18:## Code
+27:## Decisions
+34:## Delegation
+42:## Git
+
+$ required sections
+present: ## Writing
+present: ## Code
+present: ## Decisions
+present: ## Delegation
+present: ## Git
+
+Result: pass. CLAUDE.md is the single line "@AGENTS.md", and AGENTS.md has all five sections.

@@ -1,0 +1,135 @@
+C1 and C2 global part: src/setup.ts run against a scratch HOME
+
+Method: node 26 runs the repo src/setup.ts (copied to the scratch dir with the two relative imports given a .ts suffix; no other edit).
+It calls runSetup($) with a mock $. fs, env, store, ui and command are mocked. readlink and ln run for real against the scratch HOME.
+The `claude` CLI is never started: `claude plugin list --json` returns [], so the workbench-disable step is not exercised.
+HOME and CLAUDE_CONFIG_DIR both point under the scratch dir, and the harness refuses to run if HOME is elsewhere. The real ~/.claude, ~/.codex and settings.json were not touched.
+Source: origin/feature/foundation at c3b5cbc (PR #39 merged).
+
+========================================
+Scenario A: existing CLAUDE.md with no trailing newline; ~/.codex exists, AGENTS.md absent
+========================================
+HOME=<scratch>/hA
+CLAUDE_CONFIG_DIR=<scratch>/hA/cfg
+
+BEFORE
+  ~/.claude/CLAUDE.md: regular file, 31 bytes
+    | # My rules
+    | 
+    | Be brief.
+    | No emoji.
+  ~/.codex/AGENTS.md: (absent)
+  ~/.claude/studio-201/AGENTS.md: (absent)
+
+RUN 1: runSetup($)
+  > Copied AGENTS.md to ~/.claude/studio-201/AGENTS.md.
+  > Added the import line to ~/.claude/CLAUDE.md.
+  > Linked ~/.codex/AGENTS.md to the shared rules.
+  > No claude-workbench monitor or model-policy plugin is enabled.
+
+AFTER RUN 1
+  ~/.claude/CLAUDE.md: regular file, 64 bytes
+    | # My rules
+    | 
+    | Be brief.
+    | No emoji.
+    | @~/.claude/studio-201/AGENTS.md
+    | 
+  ~/.codex/AGENTS.md: symlink -> <scratch>/hA/.claude/studio-201/AGENTS.md
+  ~/.claude/studio-201/AGENTS.md (first 2 lines): regular file, 4179 bytes
+    | # Studio 201 agent rules
+    | 
+
+RUN 2: runSetup($) again
+  > Copied AGENTS.md to ~/.claude/studio-201/AGENTS.md.
+  > ~/.claude/CLAUDE.md already imports the shared rules.
+  > Codex already reads the shared rules.
+  > No claude-workbench monitor or model-policy plugin is enabled.
+
+AFTER RUN 2
+  ~/.claude/CLAUDE.md: regular file, 64 bytes
+    | # My rules
+    | 
+    | Be brief.
+    | No emoji.
+    | @~/.claude/studio-201/AGENTS.md
+    | 
+  ~/.codex/AGENTS.md: symlink -> <scratch>/hA/.claude/studio-201/AGENTS.md
+
+CHECK CLAUDE.md identical after run 2: true
+CHECK import lines in CLAUDE.md: 1
+CHECK copy equals repo AGENTS.md: true
+CHECK commands run: ["readlink <scratch>/hA/.codex/AGENTS.md","ln -s <scratch>/hA/.claude/studio-201/AGENTS.md <scratch>/hA/.codex/AGENTS.md","claude plugin list --json","readlink <scratch>/hA/.codex/AGENTS.md","claude plugin list --json"]
+
+========================================
+Scenario B: existing CLAUDE.md; ~/.codex/AGENTS.md is a regular file
+========================================
+HOME=<scratch>/hB
+CLAUDE_CONFIG_DIR=<scratch>/hB/cfg
+
+BEFORE
+  ~/.claude/CLAUDE.md: regular file, 22 bytes
+    | # My rules
+    | 
+    | Be brief.
+    | 
+  ~/.codex/AGENTS.md: regular file, 41 bytes
+    | # My own codex rules
+    | Keep answers short.
+    | 
+  ~/.claude/studio-201/AGENTS.md: (absent)
+
+RUN 1: runSetup($)
+  > Copied AGENTS.md to ~/.claude/studio-201/AGENTS.md.
+  > Added the import line to ~/.claude/CLAUDE.md.
+  > Did not link Codex: ~/.codex/AGENTS.md already exists.
+  > No claude-workbench monitor or model-policy plugin is enabled.
+
+AFTER RUN 1
+  ~/.claude/CLAUDE.md: regular file, 54 bytes
+    | # My rules
+    | 
+    | Be brief.
+    | @~/.claude/studio-201/AGENTS.md
+    | 
+  ~/.codex/AGENTS.md: regular file, 41 bytes
+    | # My own codex rules
+    | Keep answers short.
+    | 
+  ~/.claude/studio-201/AGENTS.md (first 2 lines): regular file, 4179 bytes
+    | # Studio 201 agent rules
+    | 
+
+RUN 2: runSetup($) again
+  > Copied AGENTS.md to ~/.claude/studio-201/AGENTS.md.
+  > ~/.claude/CLAUDE.md already imports the shared rules.
+  > Did not link Codex: ~/.codex/AGENTS.md already exists.
+  > No claude-workbench monitor or model-policy plugin is enabled.
+
+AFTER RUN 2
+  ~/.claude/CLAUDE.md: regular file, 54 bytes
+    | # My rules
+    | 
+    | Be brief.
+    | @~/.claude/studio-201/AGENTS.md
+    | 
+  ~/.codex/AGENTS.md: regular file, 41 bytes
+    | # My own codex rules
+    | Keep answers short.
+    | 
+
+CHECK CLAUDE.md identical after run 2: true
+CHECK import lines in CLAUDE.md: 1
+CHECK copy equals repo AGENTS.md: true
+CHECK commands run: ["readlink <scratch>/hB/.codex/AGENTS.md","claude plugin list --json","readlink <scratch>/hB/.codex/AGENTS.md","claude plugin list --json"]
+
+========================================
+Result
+========================================
+pass (scratch run):
+- An existing CLAUDE.md keeps its lines and gains exactly one import line (A and B).
+- A second run changes nothing in CLAUDE.md and reports "already imports" (A and B).
+- ~/.codex/AGENTS.md becomes a symlink to ~/.claude/studio-201/AGENTS.md when absent (A).
+- A regular ~/.codex/AGENTS.md keeps its content and stays a regular file (B).
+Observation: run 2 prints "Copied AGENTS.md" again. The copy is rewritten with identical content, so nothing changes on disk.
+needs owner (live install): the real install on the real ~/.claude, including disabling session-monitor and model-policy in settings.json through the claude CLI.
