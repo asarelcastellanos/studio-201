@@ -70,7 +70,7 @@ export function renderPane(ui: Ui, data: PaneData, board?: JSX.Element) {
 			<Text> </Text>
 			<Text dimColor>{heading('Session')}</Text>
 			<Text>since {formatClock(data.startedAt)}</Text>
-			<Text>{formatTokens(data.tokens)} since load</Text>
+			<Text>{formatTokens(data.tokens)} chat</Text>
 			<Text>{costLine(data.cost)}</Text>
 			{data.cost?.hasUnknownPrice === true ? <Text>unknown model price</Text> : null}
 			<Text> </Text>
@@ -97,6 +97,7 @@ export function renderPane(ui: Ui, data: PaneData, board?: JSX.Element) {
 			<Text dimColor>{heading('Policy')}</Text>
 			<Text>{data.policyOn ? 'on' : 'off'}</Text>
 			{ranked.length === 0 ? null : <Text> </Text>}
+			{ranked.length === 0 ? null : <Text dimColor>chat tokens</Text>}
 			{ranked.map(([model, tokens]) => (
 				<Text key={model}>
 					{modelKey(model).padEnd(NAME_WIDTH)}
