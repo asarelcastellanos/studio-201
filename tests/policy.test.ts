@@ -37,6 +37,7 @@ const setup = (on: On, world: World = {}) => {
       cwd: '/repo',
       tokenCount: 0,
       tokenSamples: [],
+      hasRow: true,
     })),
   }))
   on('process.run', (_, e) => {
