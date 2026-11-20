@@ -80,7 +80,7 @@ Status: agreed.
 **D19. Never assume repo visibility.** Every new app asks public or private. Studio 201 is public.
 Status: agreed.
 
-**D20. Git flow.** One `feature/<name>` branch per feature. One `issue/<n>-<name>` branch per issue, with its PR squash merged into the feature branch. The feature branch squash merges into main, one commit per feature. Only I merge to main.
+**D20. Git flow.** One `feature/<name>` branch per feature. One `issue/<n>-<name>` branch per issue, with its PR squash merged into the feature branch. The feature branch squash merges into main, one commit per feature. Only I merge to main. Small related issues may share one PR. Name its branch after the first issue and list every issue in the PR body.
 Why: main stays readable, with one commit per feature. Issue branches can't live under `feature/<name>/` because git refuses a branch nested inside another branch's name.
 Status: agreed.
 
