@@ -54,7 +54,9 @@ fi
 
 project=$(gh project list --owner "$owner" --limit 200 --format json \
   | jq -c --arg title "$name" '[.projects[] | select(.title == $title)][0] // empty')
+created=0
 if [ -z "$project" ]; then
+  created=1
   project=$(gh project create --owner "$owner" --title "$name" --format json)
 fi
 number=$(jq -r .number <<<"$project")
@@ -65,8 +67,18 @@ fields=$(gh project field-list "$number" --owner "$owner" --format json)
 status_wanted="Backlog,Ready,In progress,In review,QA,Done"
 status_have=$(jq -r '[.fields[] | select(.name == "Status") | .options[].name] | join(",")' <<<"$fields")
 
-if [ "$status_have" != "$status_wanted" ]; then
-  status_id=$(jq -r '.fields[] | select(.name == "Status") | .id' <<<"$fields")
+status_id=$(jq -r '[.fields[] | select(.name == "Status") | .id][0] // empty' <<<"$fields")
+if [ -z "$status_id" ]; then
+  echo "The project has no Status field. Add one with the options $status_wanted." >&2
+  exit 2
+fi
+
+if [ "$status_have" = "$status_wanted" ]; then
+  :
+elif [ "$created" = 0 ]; then
+  status_missing=$(jq -r --arg want "$status_wanted" '[($want | split(",")[]) as $o | select(([.fields[] | select(.name == "Status") | .options[].name] | index($o)) == null) | $o] | join(", ")' <<<"$fields")
+  [ -z "$status_missing" ] || echo "Status is missing options: $status_missing. Left unchanged to keep item statuses."
+else
   gh api graphql -f field="$status_id" -f query='
 mutation($field: ID!) {
   updateProjectV2Field(input: {
