@@ -392,3 +392,8 @@ Status: default.
 
 **D95. D91 agreed.** The owner approved the start time for running agents on 2026-11-20, so C10's run time is met by the start time.
 Status: agreed.
+
+**D96. The pane has three layouts, chosen by the pane's body width.** The engine gives a Pane `bodyColumns` in `e.props`, the cells inside its frame. Under 32 columns is narrow and keeps the stacked layout of D91 to D93. From 32 to 47 is medium, and 48 and over is wide. Medium and wide join short parts with " · " and start a new line when the next part does not fit. Wide puts a running or finished agent on one line when the task keeps at least 12 characters, and cuts the task with "…". Otherwise the agent uses the medium layout. Limit and context bars grow by 1 cell for every 4 columns past 48, up to 6 cells. A missing `bodyColumns` counts as narrow. The Board link text is "Board" and the href is the URL.
+Why: 32 fits "resets Mon 11/23 2:00 PM PT" (27) with room to spare. 48 fits "7d ████████ 42% · resets Mon 11/23 2:00 PM PT" (45). A one-line agent row such as "Scout · Sleep then list /usr/bin · Haiku 5.5 · since 2:08 PM · 22.6k" takes 68 columns, so below about 60 most agent rows use the medium layout.
+Gave up: a fixed one-line agent row at 48 columns, which would cut most tasks to a few characters.
+Status: default.

@@ -434,6 +434,7 @@ export const register: Register = on => {
 		const board = await boardUrl($).catch(() => undefined)
 		return renderPane(ui, {
 			model: await $.session.model(),
+			columns: e.props.bodyColumns,
 			policyOn: await read($, policyAtom),
 			byModel: totals,
 			startedAt: usage.startedAt,
