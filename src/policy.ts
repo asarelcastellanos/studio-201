@@ -4,23 +4,50 @@ export const REFUSAL =
 export type PolicyContext = {
 	cwd: string
 	home: string
-	tmpdir: string
 	scratchpad?: string
+	real?: (absolute: string) => string
 }
 
-type Segment = { words: string[]; targets: string[] }
+type Segment = { words: string[]; targets: string[]; fed: boolean }
 
 type Parsed = { segments: Segment[]; nested: string[] }
 
-const TEMP_ROOTS = ['/tmp', '/private/tmp', '/var/folders', '/private/var/folders']
+type Invocation = { cmd: string; args: string[]; viaXargs: boolean; fed: boolean }
 
-const WRAPPERS = new Set(['sudo', 'command', 'exec', 'time', 'nohup', 'xargs', 'env', 'nice'])
+type InterpreterFlags = { short: string; long: readonly string[] }
 
-const KEYWORDS = new Set(['if', 'then', 'do', 'else', 'elif', 'while', 'until', '{', '}', '!'])
+const UNKNOWN_CWD = '/unknown-cwd'
+
+const WRAPPERS = new Set(['sudo', 'command', 'exec', 'time', 'nohup', 'xargs', 'env', 'nice', 'timeout', 'stdbuf', 'npx', 'bunx', 'pnpx'])
+
+const VALUE_FLAGS: Record<string, readonly string[]> = {
+	sudo: ['-u', '-g', '-C', '-h', '-p', '-r', '-t', '-U', '-D', '-T'],
+	nice: ['-n'],
+	env: ['-u', '-C', '-S'],
+	timeout: ['-k', '-s'],
+	stdbuf: ['-i', '-o', '-e'],
+	xargs: ['-n', '-I', '-P', '-L', '-d', '-E', '-s', '-a', '-J'],
+}
+
+const KEYWORDS = new Set(['if', 'then', 'do', 'else', 'elif', 'while', 'until', '}'])
 
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh'])
 
-const READ_ONLY_APPLY = new Set(['--check', '--stat', '--numstat', '--summary'])
+const INTERPRETER_FLAGS: Record<string, InterpreterFlags> = {
+	node: { short: 'ep', long: ['--eval', '--print'] },
+	bun: { short: 'e', long: ['--eval', '--print'] },
+	perl: { short: 'eEi', long: [] },
+	ruby: { short: 'e', long: [] },
+	php: { short: 'r', long: [] },
+}
+
+const PYTHON_FLAGS: InterpreterFlags = { short: 'c', long: [] }
+
+const READ_ONLY_APPLY = ['--check', '--stat', '--numstat', '--summary']
+
+const WRITING_APPLY = ['--apply', '--index', '--3way', '-3', '--reject']
+
+const REF_PREFIXES = ['origin', 'upstream', 'refs', 'issue', 'feature', 'release', 'hotfix', 'bugfix', 'fix', 'chore']
 
 function normalize(path: string, cwd: string): string {
 	const slashed = path.replace(/\\/g, '/')
@@ -38,25 +65,28 @@ function inside(abs: string, root: string): boolean {
 	return abs === root || abs.startsWith(root + '/')
 }
 
-function tempRoots(ctx: PolicyContext): string[] {
-	const roots = [...TEMP_ROOTS]
-	if (ctx.tmpdir && ctx.tmpdir !== '/') roots.push(normalize(ctx.tmpdir, '/'))
-	if (ctx.scratchpad) roots.push(normalize(ctx.scratchpad, '/'))
-	return roots
+function absolute(path: string, ctx: PolicyContext): string {
+	const expanded = ctx.home && /^~(?:\/|$)/.test(path) ? ctx.home + path.slice(1) : path
+	return normalize(expanded, ctx.cwd)
+}
+
+function inScratchpad(abs: string, ctx: PolicyContext): boolean {
+	if (!ctx.scratchpad) return false
+	const root = normalize(ctx.scratchpad, '/')
+	if (!inside(abs, root)) return false
+	const real = ctx.real ?? ((path: string) => path)
+	return inside(real(abs), real(root))
 }
 
 export function isCodePath(path: string, ctx: PolicyContext): boolean {
-	const expanded = ctx.home && /^~(?:\/|$)/.test(path) ? ctx.home + path.slice(1) : path
-	const abs = normalize(expanded, ctx.cwd)
+	const abs = absolute(path, ctx)
+	if (abs.startsWith('/dev/')) return false
 	if (abs.toLowerCase().endsWith('.md')) return false
-	return !tempRoots(ctx).some(root => inside(abs, root))
+	return !inScratchpad(abs, ctx)
 }
 
 function targetIsCode(raw: string, ctx: PolicyContext): boolean {
-	if (raw.startsWith('/dev/')) return false
-	const target = raw.replace(/^\$(?:TMPDIR|\{TMPDIR\})(?=\/|$)/, ctx.tmpdir || '/tmp')
-	if (/[$`]/.test(target)) return true
-	return isCodePath(target, ctx)
+	return /[$`]/.test(raw) || isCodePath(raw, ctx)
 }
 
 function closingParen(text: string, open: number): number {
@@ -90,6 +120,7 @@ function parse(command: string): Parsed {
 	let targets: string[] = []
 	let word = ''
 	let hasWord = false
+	let fed = false
 	let pending: 'target' | 'skip' | undefined
 	let i = 0
 
@@ -104,9 +135,10 @@ function parse(command: string): Parsed {
 	const endSegment = () => {
 		endWord()
 		pending = undefined
-		if (words.length > 0 || targets.length > 0) segments.push({ words, targets })
+		if (words.length > 0 || targets.length > 0) segments.push({ words, targets, fed })
 		words = []
 		targets = []
+		fed = false
 	}
 	const dropFd = () => {
 		if (hasWord && /^\d+$/.test(word)) {
@@ -114,6 +146,7 @@ function parse(command: string): Parsed {
 			hasWord = false
 		} else endWord()
 	}
+	const atCommandStart = () => !hasWord && words.every(w => KEYWORDS.has(w))
 	const substitution = (open: number): number => {
 		const close = closingParen(command, open)
 		nested.push(command.slice(open + 1, close))
@@ -167,10 +200,22 @@ function parse(command: string): Parsed {
 			hasWord = true
 			i = j < 0 ? n : j + 2
 		} else if (command.startsWith('$(', i)) i = substitution(i + 1)
-		else if (c === '`') i = backtick(i)
+		else if (command.startsWith('${', i)) {
+			const j = command.indexOf('}', i)
+			const end = j < 0 ? n : j + 1
+			word += command.slice(i, end)
+			hasWord = true
+			i = end
+		} else if (c === '`') i = backtick(i)
 		else if (c === '#' && !hasWord) {
 			const j = command.indexOf('\n', i)
 			i = j < 0 ? n : j
+		} else if (command.startsWith('[[', i) && atCommandStart() && /\s/.test(command[i + 2] ?? '')) {
+			const j = command.indexOf(']]', i + 2)
+			i = j < 0 ? n : j + 2
+		} else if (command.startsWith('((', i) && atCommandStart()) {
+			const j = command.indexOf('))', i + 2)
+			i = j < 0 ? n : j + 2
 		} else if (c === ' ' || c === '\t') {
 			endWord()
 			i++
@@ -190,7 +235,9 @@ function parse(command: string): Parsed {
 			i++
 		} else if (c === '|') {
 			endSegment()
-			i += command[i + 1] === '|' || command[i + 1] === '&' ? 2 : 1
+			const double = command[i + 1] === '|'
+			i += double || command[i + 1] === '&' ? 2 : 1
+			fed = !double
 		} else if (c === '&' && command[i + 1] === '>') {
 			endWord()
 			i += command[i + 2] === '>' ? 3 : 2
@@ -211,10 +258,12 @@ function parse(command: string): Parsed {
 		} else if (c === '<') {
 			if (command.startsWith('<<<', i)) {
 				dropFd()
+				fed = true
 				i += 3
 				pending = 'skip'
 			} else if (command.startsWith('<<', i)) {
 				dropFd()
+				fed = true
 				const rest = command.slice(i + 2)
 				const match = /^-?[ \t]*(?:'([^']*)'|"([^"]*)"|\\?(\w+))/.exec(rest)
 				const delimiter = match?.[1] ?? match?.[2] ?? match?.[3]
@@ -223,6 +272,7 @@ function parse(command: string): Parsed {
 			} else if (command[i + 1] === '(') i = substitution(i + 1)
 			else {
 				dropFd()
+				fed = true
 				i++
 				pending = 'skip'
 			}
@@ -238,6 +288,49 @@ function parse(command: string): Parsed {
 
 function operandsOf(args: readonly string[]): string[] {
 	return args.filter(arg => arg !== '' && !arg.startsWith('-'))
+}
+
+function has(args: readonly string[], ...names: string[]): boolean {
+	return args.some(arg => names.some(name => arg === name || arg.startsWith(`${name}=`)))
+}
+
+function valueOf(args: readonly string[], short: string | undefined, long: string | undefined): string | undefined {
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i] ?? ''
+		if (long !== undefined && arg === `--${long}`) return args[i + 1]
+		if (long !== undefined && arg.startsWith(`--${long}=`)) return arg.slice(long.length + 3)
+		if (short !== undefined && arg.startsWith('-') && !arg.startsWith('--')) {
+			const at = arg.indexOf(short, 1)
+			if (at > 0) return arg.slice(at + 1) || args[i + 1]
+		}
+	}
+	return undefined
+}
+
+function clusterHas(arg: string, letters: string): boolean {
+	if (!/^-[^-]/.test(arg)) return false
+	const cluster = arg.slice(1).split(/[MmId]/)[0] ?? ''
+	return [...letters].some(letter => cluster.includes(letter))
+}
+
+function invocation(words: readonly string[], fed: boolean): Invocation {
+	let at = 0
+	let viaXargs = false
+	while (at < words.length) {
+		const word = (words[at] ?? '').replace(/^[{!]+/, '')
+		const name = word.split('/').pop() ?? ''
+		if (word === '' || KEYWORDS.has(word) || /^\w+=/.test(word)) {
+			at++
+			continue
+		}
+		if (!WRAPPERS.has(name)) break
+		if (name === 'xargs') viaXargs = true
+		const valued = VALUE_FLAGS[name] ?? []
+		at++
+		while ((words[at] ?? '').startsWith('-')) at += valued.includes(words[at] ?? '') ? 2 : 1
+		if (name === 'timeout') at++
+	}
+	return { cmd: (words[at] ?? '').split('/').pop() ?? '', args: words.slice(at + 1), viaXargs, fed }
 }
 
 function destinationWrites(args: readonly string[], ctx: PolicyContext, removesSources: boolean): boolean {
@@ -258,8 +351,8 @@ function destinationWrites(args: readonly string[], ctx: PolicyContext, removesS
 	return targetIsCode(to, ctx) && sources.some(source => !source.toLowerCase().endsWith('.md'))
 }
 
-function inPlaceWrites(args: readonly string[], ctx: PolicyContext, flag: RegExp): boolean {
-	if (!args.some(arg => flag.test(arg))) return false
+function inPlaceWrites(args: readonly string[], ctx: PolicyContext): boolean {
+	if (!args.some(arg => /^(?:-[A-Za-z]*i.*|--in-place(?:=.*)?)$/.test(arg))) return false
 	const plain: string[] = []
 	let scripted = false
 	for (let i = 0; i < args.length; i++) {
@@ -274,17 +367,12 @@ function inPlaceWrites(args: readonly string[], ctx: PolicyContext, flag: RegExp
 	return files.some(file => targetIsCode(file, ctx))
 }
 
-function valueOf(args: readonly string[], short: string | undefined, long: string | undefined): string | undefined {
-	for (let i = 0; i < args.length; i++) {
-		const arg = args[i] ?? ''
-		if (long !== undefined && arg === `--${long}`) return args[i + 1]
-		if (long !== undefined && arg.startsWith(`--${long}=`)) return arg.slice(long.length + 3)
-		if (short !== undefined && arg.startsWith('-') && !arg.startsWith('--')) {
-			const at = arg.indexOf(short, 1)
-			if (at > 0) return arg.slice(at + 1) || args[i + 1]
-		}
-	}
-	return undefined
+function sedWritesFile(args: readonly string[], ctx: PolicyContext): boolean {
+	const pattern = /(?:\/[gpiImeM0-9]*|^|[;{}\n!0-9$,])\s*w\s+(\S+)/g
+	return args.some(arg => {
+		if (arg.startsWith('-') && !arg.startsWith('--expression=')) return false
+		return [...arg.matchAll(pattern)].some(match => targetIsCode(match[1] ?? '', ctx))
+	})
 }
 
 function downloadWrites(cmd: string, args: readonly string[], ctx: PolicyContext): boolean {
@@ -310,9 +398,28 @@ function downloadWrites(cmd: string, args: readonly string[], ctx: PolicyContext
 		if (args.some(arg => /^-[A-Za-z]*[lptvZ][A-Za-z]*$/.test(arg))) return false
 		return targetIsCode(valueOf(args, 'd', undefined) ?? '.', ctx)
 	}
-	const operands = operandsOf(args)
 	if (args.some(arg => arg === '--dry-run' || /^-[A-Za-z]*n[A-Za-z]*$/.test(arg))) return false
+	const operands = operandsOf(args)
 	return operands.length >= 2 && targetIsCode(operands[operands.length - 1] ?? '', ctx)
+}
+
+const FIXERS: Record<string, (args: readonly string[]) => boolean> = {
+	prettier: args => has(args, '--write', '-w'),
+	eslint: args => has(args, '--fix'),
+	biome: args => has(args, '--write', '--apply', '--fix'),
+	gofmt: args => has(args, '-w'),
+	shfmt: args => has(args, '-w'),
+	ruff: args => has(args, '--fix') || (args[0] === 'format' && !has(args, '--check', '--diff')),
+	black: args => !has(args, '--check', '--diff'),
+	rustfmt: args => !has(args, '--check'),
+	cargo: args => (args[0] === 'fmt' && !has(args, '--check')) || has(args, '--fix'),
+}
+
+function looksLikeRef(operand: string): boolean {
+	if (operand === '.' || operand.startsWith(':') || operand.startsWith('/') || operand.startsWith('~')) return false
+	if (/\.[A-Za-z][A-Za-z0-9]*$/.test(operand)) return false
+	if (operand.includes('/')) return REF_PREFIXES.includes(operand.split('/')[0] ?? '')
+	return true
 }
 
 function gitWrites(args: readonly string[], ctx: PolicyContext): boolean {
@@ -322,13 +429,14 @@ function gitWrites(args: readonly string[], ctx: PolicyContext): boolean {
 	}
 	const sub = args[i]
 	const rest = args.slice(i + 1)
-	if (sub === 'apply') return !rest.some(arg => READ_ONLY_APPLY.has(arg))
+	if (sub === 'apply') return has(rest, ...WRITING_APPLY) || !has(rest, ...READ_ONLY_APPLY)
 	if (sub === 'mv') return destinationWrites(rest, ctx, true)
-	if (sub === 'rm') return operandsOf(rest).some(path => targetIsCode(path, ctx))
+	if (sub === 'rm') {
+		if (has(rest, '--cached', '-n', '--dry-run')) return false
+		return operandsOf(rest).some(path => targetIsCode(path, ctx))
+	}
 	if (sub === 'restore') {
-		const worktree = rest.some(arg => arg === '--worktree' || arg === '-W')
-		const staged = rest.some(arg => arg === '--staged' || arg === '-S')
-		if (staged && !worktree) return false
+		if (has(rest, '--staged', '-S') && !has(rest, '--worktree', '-W')) return false
 		const paths: string[] = []
 		for (let j = 0; j < rest.length; j++) {
 			const arg = rest[j] ?? ''
@@ -338,49 +446,76 @@ function gitWrites(args: readonly string[], ctx: PolicyContext): boolean {
 		return paths.some(path => targetIsCode(path, ctx))
 	}
 	if (sub === 'checkout') {
+		if (has(rest, '--ours', '--theirs', '--merge', '-m', '-f', '--force', '-p', '--patch')) return true
 		const dash = rest.indexOf('--')
 		if (dash >= 0) return operandsOf(rest.slice(dash + 1)).some(path => targetIsCode(path, ctx))
-		const operands = operandsOf(rest)
-		const branching = rest.some(arg => /^-[A-Za-z]*[bB]/.test(arg) || arg === '--orphan')
+		const branching = rest.some(arg => /^-[A-Za-z]*[bB]$/.test(arg)) || has(rest, '--orphan', '--track', '-t', '--detach')
 		if (branching) return false
-		if (operands.length >= 2) return operands.slice(1).some(path => targetIsCode(path, ctx))
-		return operands[0] === '.'
+		return operandsOf(rest).some(operand => !looksLikeRef(operand))
+	}
+	if (sub === 'switch') return has(rest, '-f', '--force', '--discard-changes')
+	if (sub === 'stash') return rest[0] === 'pop' || rest[0] === 'apply'
+	if (sub === 'reset') return has(rest, '--hard', '--merge', '--keep')
+	if (sub === 'clean') {
+		const dryRun = has(rest, '--dry-run') || rest.some(arg => /^-[A-Za-z]*n[A-Za-z]*$/.test(arg))
+		return !dryRun && rest.some(arg => arg === '--force' || /^-[A-Za-z]*f/.test(arg))
 	}
 	return false
 }
 
-function segmentWrites(segment: Segment, ctx: PolicyContext): boolean {
-	if (segment.targets.some(target => targetIsCode(target, ctx))) return true
-	const { words } = segment
-	let at = 0
-	for (; at < words.length; at++) {
-		const word = (words[at] ?? '').replace(/^[{!]+/, '')
-		if (word === '' || KEYWORDS.has(word) || /^\w+=\S*$/.test(word)) continue
-		if (WRAPPERS.has(word)) {
-			while ((words[at + 1] ?? '').startsWith('-')) at++
-			continue
-		}
-		break
+function findWrites(args: readonly string[], ctx: PolicyContext): boolean {
+	const starts: string[] = []
+	for (const arg of args) {
+		if (arg.startsWith('-') || arg === '(' || arg === '!') break
+		starts.push(arg)
 	}
-	const cmd = (words[at] ?? '').split('/').pop() ?? ''
-	const args = words.slice(at + 1)
+	if (starts.length === 0) starts.push('.')
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i] ?? ''
+		if (arg === '-delete' && starts.some(start => targetIsCode(start, ctx))) return true
+		if (/^-(?:fprint|fprint0|fprintf|fls)$/.test(arg)) {
+			const target = args[i + 1]
+			if (target !== undefined && targetIsCode(target, ctx)) return true
+		}
+		if (!/^-(?:exec|execdir|ok|okdir)$/.test(arg)) continue
+		const inner: string[] = []
+		for (i++; i < args.length && !/^(?:\\?;|\+)$/.test(args[i] ?? ''); i++) inner.push(args[i] ?? '')
+		for (const start of starts) {
+			const words = inner.map(word => word.replace(/\{\}/g, start))
+			if (segmentWrites({ words, targets: [], fed: false }, ctx)) return true
+		}
+	}
+	return false
+}
 
+function interpreterWrites(call: Invocation): boolean | undefined {
+	const { cmd, args, fed } = call
+	if (cmd === 'deno') return args[0] === 'eval'
+	const flags = /^python[\d.]*$/.test(cmd) ? PYTHON_FLAGS : INTERPRETER_FLAGS[cmd]
+	if (flags === undefined) return undefined
+	const inline = args.some(arg => clusterHas(arg, flags.short) || flags.long.some(name => has([arg], name)))
+	return inline || args.includes('-') || (fed && operandsOf(args).length === 0)
+}
+
+function commandWrites(call: Invocation, ctx: PolicyContext): boolean {
+	const { cmd, args, viaXargs, fed } = call
 	if (SHELLS.has(cmd)) {
 		const flag = args.findIndex(arg => /^-[A-Za-z]*c$/.test(arg))
-		return flag >= 0 && bashWritesCode(args[flag + 1] ?? '', ctx)
+		if (flag >= 0) return bashWritesCode(args[flag + 1] ?? '', ctx)
+		return args.includes('-') || (fed && operandsOf(args).length === 0)
 	}
+	const interpreted = interpreterWrites(call)
+	if (interpreted !== undefined) return interpreted
 	if (cmd === 'eval') return bashWritesCode(args.join(' '), ctx)
-	if (cmd === 'find') {
-		for (let i = 0; i < args.length; i++) {
-			if (!/^-(?:exec|execdir|ok|okdir)$/.test(args[i] ?? '')) continue
-			const inner: string[] = []
-			for (i++; i < args.length && !/^(?:\\?;|\+)$/.test(args[i] ?? ''); i++) inner.push(args[i] ?? '')
-			if (segmentWrites({ words: inner, targets: [] }, ctx)) return true
-		}
-		return false
+	if (cmd === 'find') return findWrites(args, ctx)
+	if (cmd === 'awk' || cmd === 'gawk' || cmd === 'mawk' || cmd === 'nawk') {
+		return args.some(arg => arg.includes('>') || arg === 'inplace')
 	}
-	if (cmd === 'sed') return inPlaceWrites(args, ctx, /^(?:-[A-Za-z]*i.*|--in-place(?:=.*)?)$/)
-	if (cmd === 'perl') return inPlaceWrites(args, ctx, /^-[pnalwWsStTuUc]*i\S*$/)
+	if (cmd === 'sed') return inPlaceWrites(args, ctx) || sedWritesFile(args, ctx)
+	if (cmd === 'sort') {
+		const out = valueOf(args, 'o', 'output')
+		return out !== undefined && targetIsCode(out, ctx)
+	}
 	if (cmd === 'patch') return !args.includes('--dry-run')
 	if (cmd === 'tee') return operandsOf(args).some(target => targetIsCode(target, ctx))
 	if (cmd === 'cp' || cmd === 'install' || cmd === 'ln') return destinationWrites(args, ctx, false)
@@ -389,6 +524,7 @@ function segmentWrites(segment: Segment, ctx: PolicyContext): boolean {
 	if (cmd === 'git') return gitWrites(args, ctx)
 	if (['curl', 'wget', 'tar', 'unzip', 'rsync'].includes(cmd)) return downloadWrites(cmd, args, ctx)
 	if (cmd === 'touch' || cmd === 'rm' || cmd === 'unlink') return operandsOf(args).some(path => targetIsCode(path, ctx))
+	if (cmd === 'chmod') return viaXargs
 	if (cmd === 'truncate') {
 		const files: string[] = []
 		for (let i = 0; i < args.length; i++) {
@@ -398,10 +534,35 @@ function segmentWrites(segment: Segment, ctx: PolicyContext): boolean {
 		}
 		return files.some(path => targetIsCode(path, ctx))
 	}
-	return false
+	const fixer = FIXERS[cmd]
+	return fixer !== undefined && fixer(args)
+}
+
+function segmentWrites(segment: Segment, ctx: PolicyContext): boolean {
+	if (segment.targets.some(target => targetIsCode(target, ctx))) return true
+	const call = invocation(segment.words, segment.fed)
+	if (!call.viaXargs) return commandWrites(call, ctx)
+	const copies = ['mv', 'cp', 'install', 'ln'].includes(call.cmd) ? 2 : 1
+	return commandWrites({ ...call, args: [...call.args, ...Array<string>(copies).fill('$XARGS')] }, ctx)
+}
+
+function movedTo(words: readonly string[], ctx: PolicyContext): string | undefined {
+	const { cmd, args } = invocation(words, false)
+	if (cmd !== 'cd' && cmd !== 'pushd') return undefined
+	const target = operandsOf(args)[0]
+	if (target === undefined) return ctx.home || UNKNOWN_CWD
+	if (/[$`]/.test(target)) return UNKNOWN_CWD
+	return absolute(target, ctx)
 }
 
 export function bashWritesCode(command: string, ctx: PolicyContext): boolean {
 	const { segments, nested } = parse(command)
-	return nested.some(inner => bashWritesCode(inner, ctx)) || segments.some(segment => segmentWrites(segment, ctx))
+	if (nested.some(inner => bashWritesCode(inner, ctx))) return true
+	let cwd = ctx.cwd
+	for (const segment of segments) {
+		const here = { ...ctx, cwd }
+		if (segmentWrites(segment, here)) return true
+		cwd = movedTo(segment.words, here) ?? cwd
+	}
+	return false
 }
