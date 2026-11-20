@@ -1,0 +1,4 @@
+$ gh project field-create 9 --owner asarelcastellanos --name Type --data-type SINGLE_SELECT --single-select-options feature,claim,task
+GraphQL: Name cannot have a reserved value, Name has already been taken (createProjectV2Field)
+exit=1
+$ ...--name Kind (control, not created)

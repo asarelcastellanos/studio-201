@@ -1,0 +1,5 @@
+$ cat .studio/config.json
+{
+  "board": "https://github.com/users/asarelcastellanos/projects/8"
+}
+https://github.com/users/asarelcastellanos/projects/8
