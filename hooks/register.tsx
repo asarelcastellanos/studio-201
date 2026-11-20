@@ -130,6 +130,7 @@ async function installSetup($: EngineInterface): Promise<Outcome> {
 			return { text: describeNothing(plan), show: false }
 		}
 		let mode: Mode = 'archive'
+		let toApply = plan
 		if (plan.items.length > 0) {
 			const answer = await $.ui
 				.ask(describePlan(plan, paths), { options: [ARCHIVE, DELETE], header: 'Old setup' })
@@ -143,10 +144,12 @@ async function installSetup($: EngineInterface): Promise<Outcome> {
 				snapshot = fresh
 				continue
 			}
+			toApply = planSetup(fresh, paths)
+			if (toApply.blocked !== undefined) return { text: toApply.blocked, show: true }
 		}
-		const applied = await applyPlan(io, paths, plan, mode, archiveStamp(await $.clock.now()))
+		const applied = await applyPlan(io, paths, toApply, mode, archiveStamp(await $.clock.now()))
 		await recordDone($)
-		return { text: describeResult(plan, mode, applied), show: true }
+		return { text: describeResult(toApply, mode, applied), show: true }
 	}
 	return { text: 'The files kept changing while setup waited for an answer, so nothing was changed. Run /studio setup again.', show: true }
 }
