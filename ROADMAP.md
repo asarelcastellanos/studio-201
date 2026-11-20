@@ -12,7 +12,7 @@ The smallest Studio 201 that runs a trial. Spec: [docs/spec/v0.1.md](docs/spec/v
 - F2 Session meter: side pane with session time, tokens, cost, context, policy, and 5h and 7d usage with a forecast in Pacific time.
 - F3 Product board: project setup that creates one GitHub Project per product, and a Board link.
 - F4 Agents pane: running agents (top 5, then "Show N more"), finished agents hidden, click an agent to see its transcript.
-- F5 Team and policy: agent files with pinned models, the main session doesn't write code, only you merge to main, branch flow.
+- F5 Team and policy: agent files with pinned models, the main session doesn't write code, merges into main ask you first, branch flow through a release branch, no-comments check.
 
 During the 0.1 trial, the process steps (spec, plan, review and QA) run by hand.
 
@@ -25,7 +25,7 @@ During the 0.1 trial, the process steps (spec, plan, review and QA) run by hand.
 - Plan page: HTML page from `plan.md` with diagrams and decision cards.
 - Review and QA loop: findings become issues, get fixed, and are re-checked. After 3 rounds the issue goes to you.
 - QA evidence guides per platform: web, Apple, Windows, Python data, R data.
-- The four reasons a claim gets an automated test.
+- When a claim gets a unit test (D36).
 - Receipt PRs: each claim with its proof and evidence link.
 - Assumptions skill and git-flow skill.
 - Compound step: a repeated mistake becomes a check.

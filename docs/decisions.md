@@ -132,6 +132,60 @@ Status: default.
 Why: comments drift from the code and pad agent output. Clear names do the same job and stay true.
 Status: agreed.
 
+## 2026-11-19: v0.1 restart
+
+**D32. v0.1 restarted from the plan and spike commit (e504145).** The first attempt's branches, PRs and extra issues were removed. Lessons kept: the policy needed several review rounds to fix bypasses and false denies, and scope (the release branch) was added mid-build without a spec change.
+Why: a clean start from the approved plan is cheaper than untangling the first attempt.
+Status: agreed.
+
+**D33. One release branch per version.** An `issue/<n>-<name>` PR squash merges into `feature/<name>`. A feature that passes review and QA merges into `release/v<version>` with no stop for me. Only the release branch merges into main. Replaces D20's flow.
+Why: I review once per version, not once per feature.
+Gave up: a stop at every feature.
+Status: agreed.
+
+**D34. Merges into main ask me instead of being refused.** Replaces "only I merge to main" in D20 and the hook described in D8. Before merging into main, the main session gives me a review package: the PR link, what changed, QA evidence per claim, and anything still open. The policy hook returns an "ask" permission decision for `gh pr merge` into main, `git push` to main (including refspecs like `HEAD:main`) and `gh api` merge calls, so I see Claude Code's permission prompt. If I approve, it merges. If I decline, nothing happens. A subagent's attempt is refused outright. I approve once per version.
+Why: I want to review and approve in the terminal, then let Claude merge.
+Gave up: GitHub doesn't enforce it, because the PRs are under my account (D8).
+Status: agreed.
+
+**D35. No code comments.** Replaces the first half of D31 ("almost no"). There are no exceptions. A check script fails any change that adds a comment and runs before every PR. The reviewer flags any it finds. The 0.2 deslop skill from D31 stays planned.
+Why: comments drift from the code. A rule with exceptions needs a judgment call on every change, and a rule with none needs no judgment.
+Status: agreed.
+
+**D36. QA proves each claim in a real session.** Narrows D9. The proof is a screenshot or the command output. The QA runner saves the evidence in `qa/v0.1/`, posts it on the claim's issue as a comment with a one-line result, and closes the issue. Screenshots are linked from the repo, because `gh` can't upload images to comments. Text output is pasted in. A unit test is written only when the spec names the reason, and in v0.1 only C6 does. Any other unit test needs my OK first. There are no integration tests or test suites. Unit tests follow three rules from Matt Pocock's `tdd`. Test at an agreed boundary. Take expected values from the spec or worked examples, not from the code. Mock only outside systems, such as time.
+Why: tests written by agents tend to mirror the code and pass (D9). Evidence from a real session shows the claim works.
+Gave up: regression coverage beyond C6.
+Status: agreed.
+
+**D37. QA closes tickets.** Confirms D10. I don't approve each ticket. I review all the evidence once, at the release-to-main merge.
+Why: one review of everything is faster than approving each ticket.
+Status: agreed.
+
+**D38. Nine roles.** The check-writer role is folded into coder, because its only v0.1 job is the C6 test. The roles are scout, researcher, reviewer, design-critic, qa-runner, coder, ui-builder, writer and mechanic.
+Why: a role with one job in v0.1 doesn't earn its own file.
+Status: agreed.
+
+**D39. Role files are modeled on the research sources.** pstack's `worker.md` is the shared contract every role reads first. It is adapted so that agents never ask questions, and the main session asks me at the merge into main. Each role's sources are in [research.md](research.md) under "Role file sources". Every copied or adapted file records its source repo, commit and license in `vendor/SOURCES.md`. Parts of a source that contradict our rules are left out. These are test-first on every ticket (Matt's `tdd` and `implement`), committing to whatever branch is checked out (Matt's `implement`), and pstack's "never ask a person" for the main session.
+Why: these sources are used and maintained by others, so the roles start from what has worked instead of from nothing (D6).
+Gave up: a role file that follows its source exactly.
+Status: agreed.
+
+**D40. F5 builds the minimal plugin frame.** The frame is `.claude-plugin/plugin.json`, `hooks/hooks.json` and `hooks/register.tsx`. F1 adds the marketplace file, install, setup and update on top.
+Why: the policy hook can't run without them.
+Status: agreed.
+
+**D41. For C14, code is any file except `.md` files and files in the session's scratchpad.**
+Why: the first attempt's false denies came from an unclear line.
+Status: agreed.
+
+**D42. C13's model check uses each agent's transcript during F5.** The check that the pane shows the right model moves to F2's QA.
+Why: the pane doesn't exist until F2.
+Status: agreed.
+
+**D43. Chrome Modern Web Guidance is the web reference for ui-builder and design-critic.** It is installed with `DISABLE_TELEMETRY=1` when a web project needs it. Each web project's `AGENTS.md` states a Baseline target, with "Baseline Widely available" as the default. v0.1 itself has no web UI, because the pane is a terminal UI, so this applies to products built with Studio 201.
+Why: it gives both roles one current reference for built-in browser features and browser support.
+Status: agreed.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.

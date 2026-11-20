@@ -16,6 +16,7 @@ The sources studied on 2026-11-19 and what Studio 201 takes from each. Read befo
 | [Every, compound engineering](https://every.to/chain-of-thought/compound-engineering-how-every-codes-with-agents) | Record a lesson after every change. |
 | [Amp oracle](https://ampcode.com/news/oracle) | A stronger model as a read-only second opinion, called on purpose. |
 | [nicobailon/visual-explainer](https://github.com/nicobailon/visual-explainer) | Plans as HTML pages with diagrams and decision cards. |
+| [mattpocock/skills](https://github.com/mattpocock/skills), MIT | `implement`: build what was decided, never reopen the plan. `code-review`: two checks, standards and spec, and each finding cites the rule or the spec line. `writing-for-agents`: the no-op test. Delete a line, and if behavior doesn't change it goes. `to-tickets`: blocking links between tickets. `tdd`: quality rules for the rare unit test. Skipped: test-first on every ticket, committing to the current branch, and `grill-me` and `to-spec` (0.2 process work). |
 
 ## Specs and QA
 
@@ -37,11 +38,29 @@ The sources studied on 2026-11-19 and what Studio 201 takes from each. Read befo
 | [AvdLee swiftui-agent-skill](https://github.com/AvdLee/swiftui-agent-skill) | SwiftUI, including Liquid Glass. Not yet read. |
 | [microsoft/win-dev-skills](https://github.com/microsoft/win-dev-skills) | WinUI and Fluent. Not yet read. |
 | [Radix Colors](https://www.radix-ui.com/colors), Adobe Leonardo | Palettes with contrast built in. |
+| [Chrome Modern Web Guidance](https://developer.chrome.com/docs/modern-web-guidance), Apache-2.0 code and CC-BY 4.0 guides | Prefer built-in browser features over JavaScript. Set a Baseline target per web project. Load fallbacks only when needed. Use `legacy-scan` as a check. Telemetry is on by default, so install with `DISABLE_TELEMETRY=1`. |
 
 ## Catalogs
 
 - [skills.sh](https://www.skills.sh/): `npx skills add owner/repo`. The rankings follow install counts, not quality.
 - [AI SDK llms.txt](https://ai-sdk.dev/llms.txt): link from web projects that use the AI SDK.
+
+## Role file sources
+
+| Role | Modeled on |
+|------|------------|
+| All roles (shared contract) | pstack `worker.md`, plus Anthropic's brief rule (objective, output format, boundaries) |
+| coder | superpowers `implementer-prompt.md`, Matt `implement` (don't reopen the plan), pstack subtract-before-you-add and boundary-discipline, Matt `tdd` quality rules for C6 only |
+| mechanic | superpowers `implementer-prompt.md`, narrowed to edits the brief spells out |
+| reviewer | Matt `code-review` (standards and spec checks), superpowers `code-reviewer.md`, pstack `interrogate` (a finding needs a repro), pstack `comment-sicko` (with no exceptions) |
+| qa-runner | pstack `create-verification-skill` and `prove-it-works` |
+| scout | pstack `how` and `why` |
+| researcher | Anthropic multi-agent research system, pstack `figure-it-out` |
+| writer | pstack `technical-writing` and `unslop`, Matt `writing-for-agents` |
+| ui-builder | Anthropic frontend-design, Impeccable `craft-floor.md`, Vercel Web Interface Guidelines, Chrome Modern Web Guidance |
+| design-critic | Impeccable `craft-floor.md` and `detect`, Vercel Web Interface Guidelines, Emil Kowalski skills, Modern Web Guidance `legacy-scan` |
+
+What each role takes is decided when its file is written. Parts that contradict our rules are left out (D39).
 
 ## Unverified
 
