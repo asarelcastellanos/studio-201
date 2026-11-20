@@ -36,10 +36,20 @@ Details in [ROADMAP.md](ROADMAP.md).
 
 ## Install
 
-Arrives with 0.1:
+Run this in a Claude Code terminal session. Answer `y` to add the marketplace, then pick a scope.
+
+    /plugin install studio-201 --marketplace asarelcastellanos/studio-201
+
+Or add the marketplace first, then install:
 
     /plugin marketplace add asarelcastellanos/studio-201
-    /studio update        # pull the latest on any Mac
+    /plugin install studio-201@studio-201
+
+The first session after install asks once before it changes anything. If you say yes, it copies `AGENTS.md` to `~/.claude/studio-201/`, adds one import line to `~/.claude/CLAUDE.md`, links `~/.codex/AGENTS.md` when Codex is set up, and disables the claude-workbench monitor and model-policy plugins. The disable step writes to `~/.claude/settings.json` through the `claude` CLI. Running sessions keep those plugins until restart, and `claude plugin enable <id>` undoes it. `/studio setup` runs it again.
+
+To pull the latest version on any Mac:
+
+    /studio update
 
 ## Docs
 

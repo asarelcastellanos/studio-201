@@ -1,0 +1,12 @@
+{
+  "name": "studio-201",
+  "description": "Studio 201, an agent team for Claude Code.",
+  "owner": { "name": "Asarel Castellanos" },
+  "plugins": [
+    {
+      "name": "studio-201",
+      "source": "./",
+      "description": "An agent team for Claude Code: you manage, an Opus orchestrator plans, specialist agents build, review and QA."
+    }
+  ]
+}
