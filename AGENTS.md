@@ -6,17 +6,23 @@ Studio 201 is for solo developers: new projects, projects they maintain, and con
 
 ## Git
 
-- Cut each feature branch from main as `feature/<name>`.
+- Cut each version's release branch from main as `release/v<x.y.z>`. A fix release is cut from main under its new patch version.
+- Cut each feature branch from the current release branch as `feature/<name>`.
 - Cut each issue branch from its feature branch as `issue/<number>-<name>`, and work it in its own worktree.
 - Do not name an issue branch under `feature/<name>/`. Git refuses a branch nested inside another branch's name.
 - Open issue PRs into the feature branch. Squash merge them after review and QA pass.
 - Small related issues may share one PR. Name its branch after the first issue and list every issue in the PR body.
-- Merge main into the feature branch whenever main moves.
-- Send the feature branch to main through one PR, squash merged.
-- List every issue the feature covers as "- Closes #n" in the feature PR. GitHub closes issues only on a merge to main.
-- Issue PRs may carry "- Closes #n" too.
-- Bump the version in the feature PR into main. A feature bumps the minor version. A fix bumps the patch version.
-- Only the owner merges into main. Agents never merge into main or push to it.
+- Merge the release branch into the feature branch whenever the release branch moves.
+- Send the feature branch to the release branch through one PR, squash merged after review and QA pass.
+- Send the release branch to main through one PR that the owner reviews once per version.
+- List every issue the version covers as "- Closes #n" in the release PR. GitHub closes issues only on a merge to main.
+- Issue PRs and feature PRs may carry "- Closes #n" too.
+- The orchestrator bumps the version as the last commit on the release branch before the release PR.
+- A version release bumps the minor version.
+- A fix release bumps the patch version.
+- Only the owner merges into main, with rebase.
+- Main keeps one commit per feature, plus the version bump.
+- Agents never merge into main or push to it.
 - Follow semantic versioning, with one GitHub milestone per version.
 - Stay on 0.x until design pass 2. Then 1.0 is the public release.
 - Use a feature flag only when a feature must ship hidden.

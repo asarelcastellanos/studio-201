@@ -132,6 +132,15 @@ Status: default.
 Why: comments drift from the code and pad agent output. Clear names do the same job and stay true.
 Status: agreed.
 
+**D32. Read-only roles can't write files through the shell.** The policy refuses shell commands that write files when scout, researcher, reviewer, design-critic or qa-runner runs them. qa-runner may write under `qa/`. C13 now reads "Read-only roles can't edit files, including through shell commands."
+Why: reviewers and QA are only independent if they can't change what they check.
+Status: agreed.
+
+**D33. One release branch per version.** Each version gets a `release/v<x.y.z>` branch cut from main. A fix release is cut from main under its new patch version. Feature branches come off it, and feature PRs squash merge into it after review and QA. The owner reviews the version once, as a PR from the release branch into main, and merges it with rebase, so main gets one commit per feature. Only the owner merges into main. Replaces the main-merge step of D20.
+Why: the owner wants to review a whole version at once instead of each feature, so the build doesn't stop between features.
+Gave up: main doesn't get each feature as soon as it's done.
+Status: default.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
