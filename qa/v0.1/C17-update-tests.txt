@@ -1,0 +1,23 @@
+C17: the /studio update message logic, through the unit tests
+Source: origin/feature/foundation at c3b5cbc. Full run is in F1-plugin-tests.txt.
+
+$ claude plugin test .   (tests/update.test.ts lines)
+tests/update.test.ts:
+(pass) readVersion reads plugin.json and rejects anything else
+(pass) describeUpdate reports old and new versions
+
+What the tests cover (tests/update.test.ts, src/update.ts):
+- readVersion returns "0.1.0" from '{"name":"studio-201","version":"0.1.0"}'.
+  It returns undefined for a missing version, a non-string version and invalid JSON.
+  runUpdate uses it to read the old version and stops with "Could not read the current version from plugin.json." on undefined.
+- describeUpdate, 0.1.0 to 0.2.0: "Updated v0.1.0 to v0.2.0. Run /reload-plugins if the new version isn't active."
+- describeUpdate, 0.1.0 to 0.2.0 with the AGENTS.md refresh failed: the same text with "Could not refresh the AGENTS.md copy." added before the reload line.
+- describeUpdate, 0.2.0 to 0.2.0: "Studio 201 v0.2.0 is already the latest." with no reload line.
+
+What the tests do not cover:
+- runUpdate itself: the `claude plugin marketplace update studio-201` and `claude plugin update studio-201@studio-201 -y` calls, the failure messages when either exits non-zero, reading the new version from `claude plugin list --json`, the AGENTS.md refresh, and the `reload-plugins` command run.
+- That a real marketplace update pulls the main branch of the repo.
+- Running it on a second Mac.
+
+Result: pass (tests, message logic).
+needs owner (live): bump the version in plugin.json on main, run /studio update in a real session, and confirm the old and new version in the reply.

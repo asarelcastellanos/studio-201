@@ -1,0 +1,93 @@
+$ claude plugin validate .
+
+Validating marketplace manifest: <repo>/.claude-plugin/marketplace.json
+
+⚠ Found 1 warning:
+
+  ❯ plugins[0] plugin.json → author: No author information provided. Consider adding author details for plugin attribution
+
+Validating plugin: <repo>/.claude-plugin/plugin.json
+
+⚠ Found 1 warning:
+
+  ❯ author: No author information provided. Consider adding author details for plugin attribution
+
+Validating plugin: <repo>/CLAUDE.md
+
+⚠ Found 1 warning:
+
+  ❯ root: CLAUDE.md at the plugin root is not loaded as project context. To ship context with your plugin, use a skill (skills/<name>/SKILL.md) instead.
+
+Validating hooks: <repo>/hooks/hooks.json
+
+  ❯ ./register.tsx hooks: tool.call, classic.SubagentStart, classic.SubagentStop, session.start, command.run{command=studio}
+  ❯ ./register.tsx answers its own command: command.run{command=studio}
+  ❯ ./register.tsx gating hook with .catch: tool.call
+  ❯ ./register.tsx gating hook without .catch: classic.SubagentStart
+  ❯ ./register.tsx gating hook without .catch: classic.SubagentStop
+  ❯ ./register.tsx calls: $.agent.list, $.command.register, $.command.run (via runUpdate), $.env.get (via homeDir, isAllowedPath), $.fs.exists (via importAgents, linkCodex, refreshAgents), $.fs.read (via copyAgents, importAgents, refreshAgents, runUpdate), $.fs.write (via copyAgents, importAgents, refreshAgents), $.process.run (via checkMerge, claude, git, linkCodex, runUpdate), $.store.get (via firstRun), $.store.set (via firstRun, runSetup), $.ui.ask (via firstRun), $.ui.log, $.ui.toast
+  ❯ ./register.tsx env writes: nothing
+  ❯ ./register.tsx env reads: HOME, TMPDIR
+
+Provides:
+
+  ❯ modules: hooks/register.tsx
+  ❯ agents: studio-201:check-writer
+  ❯ agents: studio-201:coder
+  ❯ agents: studio-201:design-critic
+  ❯ agents: studio-201:mechanic
+  ❯ agents: studio-201:qa-runner
+  ❯ agents: studio-201:researcher
+  ❯ agents: studio-201:reviewer
+  ❯ agents: studio-201:scout
+  ❯ agents: studio-201:ui-builder
+  ❯ agents: studio-201:writer
+
+Hosts not read for: modules (1)
+Hosts not declared: list what these parts reach under "network.hosts" in plugin.json
+
+Plugin directory checks for <repo>. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.
+
+⚠ Found 1 plugin directory warning:
+
+  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.
+
+About these checks:
+
+  ❯ This folder also holds a marketplace manifest. The plugin directory treats such a folder as a plugin, so these checks cover only the plugin in this folder. To check another plugin that the marketplace lists, run validate on that plugin's folder.
+  ❯ hooks/hooks.json names a hooks module (a code file listed under `modules`). The plugin directory has rules of its own for such code, and these checks apply none of them, so passing here does not mean the directory accepts the plugin. The developer portal's own validation applies those rules.
+
+These plugin directory checks do not change the result below.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+✔ Validation passed with warnings
+exit 0
+
+----------------------------------------
+$ claude plugin test .
+
+tests/policy.test.ts:
+(pass) the main session may not edit repo files [38.52ms]
+(pass) no actor pushes to main [19.56ms]
+(pass) a merge is refused when it lands in main or the base is unknown [19.05ms]
+(pass) everyday commands pass [13.18ms]
+(pass) each refusal says why [12.13ms]
+
+tests/readonly.test.ts:
+(pass) a read-only agent that changed the repo is flagged [42.49ms]
+(pass) the flag names the agent and at most 5 paths [17.09ms]
+
+tests/setup.test.ts:
+(pass) the import line is added once and nothing else changes [1.47ms]
+(pass) workbench plugins are split into disable and skipped by scope [0.35ms]
+
+tests/update.test.ts:
+(pass) readVersion reads plugin.json and rejects anything else [1.11ms]
+(pass) describeUpdate reports old and new versions [0.23ms]
+
+ 11 pass
+ 0 fail
+Ran 11 tests across 4 files. [0.23s]
+exit 0
