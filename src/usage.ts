@@ -2,11 +2,13 @@ import type { ModelUsage } from 'claude-code'
 
 export type Totals = Map<string, number>
 
+export function turnTokens(usage: ModelUsage): number {
+	return usage.input_tokens + usage.output_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
+}
+
 export function addTurn(totals: Totals, model: string, usage: ModelUsage): void {
-	const sum =
-		usage.input_tokens + usage.output_tokens + usage.cache_read_input_tokens + usage.cache_creation_input_tokens
 	const key = modelKey(model)
-	totals.set(key, (totals.get(key) ?? 0) + sum)
+	totals.set(key, (totals.get(key) ?? 0) + turnTokens(usage))
 }
 
 export function sumTokens(totals: Totals): number {
