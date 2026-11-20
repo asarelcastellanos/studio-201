@@ -581,22 +581,35 @@ function segmentWrites(segment: Segment, base: PolicyContext): boolean {
 
 export type Vars = Map<string, string>
 
-export function assignedIn(words: readonly string[], vars: Vars): void {
-	if (words.length === 0 || !words.every(word => /^[A-Za-z_]\w*=/.test(word))) return
-	for (const word of words) {
-		const at = word.indexOf('=')
-		const name = word.slice(0, at)
-		const value = word.slice(at + 1)
-		if (value === '' || /[\s$`*?[~]/.test(value)) vars.delete(name)
-		else vars.set(name, value)
+const STRUCTURE = /[({]|\b(?:for|while|until|do|then|if|else|elif|case|select|function)\b/
+
+export function soleAssignments(command: string): Vars {
+	const found: Vars = new Map()
+	const pattern = /(?:^|[;&\n])[ \t]*([A-Za-z_]\w*)=([^\s;&|<>()$`'"\\*?[~{}]+)[ \t]*(?=[;&\n]|$)/g
+	for (const match of command.matchAll(pattern)) {
+		const name = match[1] ?? ''
+		const value = match[2] ?? ''
+		const uses = command.match(new RegExp(`(?<!\\w)${name}(?!\\w)`, 'g'))?.length ?? 0
+		if (uses === 2 && !STRUCTURE.test(command.slice(0, match.index))) found.set(name, value)
 	}
+	return found
+}
+
+export function assignedIn(words: readonly string[], vars: Vars, sole: Vars): void {
+	if (words.length !== 1) return
+	const word = words[0] ?? ''
+	const at = word.indexOf('=')
+	const name = word.slice(0, at)
+	if (at > 0 && sole.get(name) === word.slice(at + 1)) vars.set(name, sole.get(name) ?? '')
 }
 
 export function movedTo(words: readonly string[], ctx: PolicyContext, vars?: Vars): string | undefined {
 	const { cmd, args } = invocation(words, false)
-	if (cmd !== 'cd' && cmd !== 'pushd') return undefined
+	if (cmd === 'pushd' || cmd === 'popd') return UNKNOWN_CWD
+	if (cmd !== 'cd') return undefined
 	const target = operandsOf(args)[0]
 	if (target === undefined) return ctx.home || UNKNOWN_CWD
+	if (target === '-') return UNKNOWN_CWD
 	const named = /^\$(?:(\w+)|\{(\w+)\})$/.exec(target)
 	const known = named === null ? undefined : vars?.get(named[1] ?? named[2] ?? '')
 	if (known !== undefined) return absolute(known, ctx)
@@ -609,10 +622,11 @@ export function bashWritesCode(command: string, ctx: PolicyContext): boolean {
 	if (nested.some(inner => bashWritesCode(inner, ctx))) return true
 	let cwd = ctx.cwd
 	const vars: Vars = new Map()
+	const sole = soleAssignments(command)
 	for (const segment of segments) {
 		const here = { ...ctx, cwd }
 		if (segmentWrites(segment, here)) return true
-		assignedIn(segment.words, vars)
+		assignedIn(segment.words, vars, sole)
 		cwd = movedTo(segment.words, here, vars) ?? cwd
 	}
 	return false

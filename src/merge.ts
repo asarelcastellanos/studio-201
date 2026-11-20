@@ -1,4 +1,4 @@
-import { SHELLS, absolute, assignedIn, invocation, looksLikeRef, movedTo, parse, valueOf } from './policy'
+import { SHELLS, absolute, assignedIn, invocation, looksLikeRef, movedTo, parse, soleAssignments, valueOf } from './policy'
 import type { Invocation, Vars } from './policy'
 
 export const ASK_REASON = 'studio-201: this merges into main. Check the review package above, then approve or decline.'
@@ -243,12 +243,13 @@ export function mergesIntoMain(command: string, ctx: MergeContext): boolean {
 	let cwd = ctx.cwd
 	let tracked = ctx.tracked
 	const vars: Vars = new Map()
+	const sole = soleAssignments(command)
 	for (const segment of segments) {
 		const here: MergeContext = tracked === undefined ? { ...ctx, cwd } : { ...ctx, cwd, tracked }
 		const call = invocation(segment.words, segment.fed)
 		if (commandMerges(call, here)) return true
 		tracked = switchedTo(call, here) ?? tracked
-		assignedIn(segment.words, vars)
+		assignedIn(segment.words, vars, sole)
 		cwd = movedTo(segment.words, here, vars) ?? cwd
 	}
 	return false

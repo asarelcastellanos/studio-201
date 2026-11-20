@@ -376,3 +376,8 @@ Status: default.
 Why: the review showed `-m --abort` and unquoted `$X.md` as bypasses, and a subagent on an issue branch was judged by the main session's branch.
 Gave up: allowing an unquoted `$X.md` target, and a total time cap across the lookups of one command.
 Status: default.
+
+**D102. `cd $VAR` resolves only for a sole top-level assignment.** This narrows part (4) of D101. `cd $X`, `cd "$X"` or `cd ${X}` resolves only when three things hold. The name appears exactly once as a plain `X=literal` segment before the cd, with no parentheses, braces, loop or conditional keyword earlier in the command and no `+=`. The name appears nowhere else in the command except that cd, so `export`, `declare`, `read`, `eval`, `printf -v`, `for`, `unset`, other expansions and later assignments all disable it. The literal has no whitespace, `$`, backtick, quote, glob or `~`. In every other case the cwd is unknown and counts as main (D55). `pushd`, `popd` and `cd -` also make the cwd unknown.
+Why: D101 trusted the last assignment it saw, so `export X=/r`, a loop, a subshell or `pushd` left a stale value and a merge on main passed.
+Gave up: resolving a quoted literal such as `X='/w'`, and resolving after any earlier `(`, `{` or loop keyword in the command.
+Status: default.
