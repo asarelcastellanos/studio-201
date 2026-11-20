@@ -235,8 +235,8 @@ function syncTotals(startedAt: number): void {
 	lastStartedAt = startedAt
 }
 
-async function agentEvent($: EngineInterface, stoppedId?: string): Promise<void> {
-	trackFinished(finishedAgents, await $.agent.list(), await $.clock.now(), stoppedId)
+async function agentEvent($: EngineInterface): Promise<void> {
+	trackFinished(finishedAgents, await $.agent.list(), await $.clock.now())
 	$.ui.invalidate('ui.render')
 }
 
@@ -420,13 +420,18 @@ export const register: Register = on => {
 		return next(e)
 	})
 
+	on('turn.start', async ($, e, next) => {
+		if (e.agentId !== undefined) await agentEvent($)
+		return next(e)
+	}).catch(($, e, next) => next(e))
+
 	on('classic.SubagentStart', async ($, e, next) => {
 		await agentEvent($)
 		return next(e)
 	}).catch(($, e, next) => next(e))
 
 	on('classic.SubagentStop', async ($, e, next) => {
-		await agentEvent($, e.agent_id)
+		await agentEvent($)
 		return next(e)
 	}).catch(($, e, next) => next(e))
 

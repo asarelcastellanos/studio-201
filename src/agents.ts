@@ -46,12 +46,10 @@ export function trackFinished(
 	finished: Map<string, FinishedRow>,
 	list: readonly AgentInfo[],
 	now: number,
-	stoppedId?: string,
 ): void {
 	for (const info of list) {
-		if ((isFinished(info) || info.id === stoppedId) && !finished.has(info.id)) {
-			finished.set(info.id, { ...agentRow(info), endTime: now })
-		}
+		if (!isFinished(info)) finished.delete(info.id)
+		else if (!finished.has(info.id)) finished.set(info.id, { ...agentRow(info), endTime: now })
 	}
 	const surplus = finished.size - FINISHED_KEPT
 	if (surplus > 0) {
