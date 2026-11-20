@@ -18,6 +18,9 @@ During the 0.1 trial, the process steps (spec, plan, review and QA) run by hand.
 
 ## 0.2: Process
 
+- Three starting points, one flow each: a new project, a project I maintain, and contributing to someone else's project.
+- Codebase onboarding for a project I've never seen: a map of its structure, how to run it, its conventions and contribution rules, before any change.
+- Contribution mode: follow the upstream project's own rules, branch names and PR format instead of Studio 201's, and keep Studio 201 files out of the upstream repo.
 - Spec skill: numbered claims tied to your words, with proof and assumptions.
 - Plan page: HTML page from `plan.md` with diagrams and decision cards.
 - Review and QA loop: findings become issues, get fixed, and are re-checked. After 3 rounds the issue goes to you.

@@ -2,7 +2,17 @@
 
 An agent team for Claude Code. You're the manager: an Opus orchestrator plans and hands work to specialist agents, and a GitHub board shows every task.
 
-Status: planning v0.1. Not installable yet.
+Status: building v0.1. Not installable yet.
+
+## Who it's for
+
+Solo developers, working on:
+
+- a new project from scratch,
+- a project they already maintain,
+- an existing project they want to contribute to, whether they know the codebase or are seeing it for the first time.
+
+Every skill, agent and doc is written for one person doing the whole job with a team of agents.
 
 ## How it works
 
@@ -34,6 +44,7 @@ Arrives with 0.1:
 ## Docs
 
 - [Spec v0.1](docs/spec/v0.1.md)
+- [Plan v0.1](docs/plan/v0.1.md)
 - [Decisions](docs/decisions.md)
 - [Research](docs/research.md)
 - [Blueprint](docs/blueprint.html) and [pane design, pass 1](docs/design/pane-pass-1.html). These are HTML pages. Download and open them in a browser.

@@ -98,6 +98,20 @@ Status: agreed.
 **D24. License: MIT.**
 Status: agreed.
 
+**D25. Audience: solo developers.** Studio 201 is for one person who:
+- builds new projects,
+- maintains their own,
+- contributes to existing projects, with or without prior knowledge of the codebase.
+
+Every doc, skill and agent is written for that person.
+Why: this is how I work, and it sets what "done" means. One person approves, reviews and ships, so the tool has to explain itself and keep the overhead low.
+Effects: contributing to someone else's repo needs onboarding (learning an unfamiliar codebase) and a mode that follows that project's rules instead of ours. Both are planned for 0.2. Docs assume no team, no designer, and no prior context.
+Gave up: team features such as multiple reviewers, roles and permissions.
+Status: agreed.
+
+**D26. v0.1 plan approved.** Build order: spike, F5, F1, F3, F2, F4, then install. Decision cards K1 to K10 accepted as recommended. See [plan/v0.1.md](plan/v0.1.md).
+Status: agreed.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
