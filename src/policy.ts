@@ -6,10 +6,11 @@ export type PolicyContext = {
 	home: string
 	scratchpad?: string
 	strict?: boolean
+	loose?: ReadonlySet<string>
 	real?: (absolute: string) => string
 }
 
-type Segment = { words: string[]; targets: string[]; fed: boolean }
+type Segment = { words: string[]; targets: string[]; fed: boolean; loose: Set<string> | undefined }
 
 type Parsed = { segments: Segment[]; nested: string[] }
 
@@ -102,7 +103,10 @@ export function isCodePath(path: string, ctx: PolicyContext): boolean {
 }
 
 function targetIsCode(raw: string, ctx: PolicyContext): boolean {
-	if (/[$`]/.test(raw)) return !isMarkdown(raw, ctx)
+	if (/[$`]/.test(raw)) {
+		if (ctx.loose === undefined || ctx.loose.has(raw) || /\$(?:SUB|ARITH)/.test(raw)) return true
+		return !isMarkdown(raw, ctx)
+	}
 	return isCodePath(raw, ctx)
 }
 
@@ -139,10 +143,14 @@ export function parse(command: string): Parsed {
 	let hasWord = false
 	let fed = false
 	let pending: 'target' | 'skip' | undefined
+	let loose = new Set<string>()
+	let unquoted = false
+	let quotedParts = 0
 	let i = 0
 
 	const endWord = () => {
 		if (!hasWord) return
+		if (/[$`]/.test(word) && (unquoted || quotedParts !== 1)) loose.add(word)
 		if (pending === 'target') targets.push(word)
 		else if (pending === undefined) words.push(word)
 		pending = undefined
@@ -152,9 +160,10 @@ export function parse(command: string): Parsed {
 	const endSegment = () => {
 		endWord()
 		pending = undefined
-		if (words.length > 0 || targets.length > 0) segments.push({ words, targets, fed })
+		if (words.length > 0 || targets.length > 0) segments.push({ words, targets, fed, loose })
 		words = []
 		targets = []
+		loose = new Set()
 		fed = false
 	}
 	const dropFd = () => {
@@ -182,6 +191,7 @@ export function parse(command: string): Parsed {
 
 	while (i < n) {
 		const c = command[i] ?? ''
+		if (c !== '"' && !' \t\n;|&<>()'.includes(c)) unquoted = true
 		if (c === '\\') {
 			if (command[i + 1] === '\n') i += 2
 			else {
@@ -196,6 +206,11 @@ export function parse(command: string): Parsed {
 			hasWord = true
 			i = end + 1
 		} else if (c === '"') {
+			if (!hasWord) {
+				unquoted = false
+				quotedParts = 0
+			}
+			quotedParts++
 			hasWord = true
 			i++
 			while (i < n && command[i] !== '"') {
@@ -499,7 +514,7 @@ function findWrites(args: readonly string[], ctx: PolicyContext): boolean {
 		for (i++; i < args.length && !/^(?:\\?;|\+)$/.test(args[i] ?? ''); i++) inner.push(args[i] ?? '')
 		for (const start of starts) {
 			const words = inner.map(word => word.replace(/\{\}/g, start))
-			if (segmentWrites({ words, targets: [], fed: false }, ctx)) return true
+			if (segmentWrites({ words, targets: [], fed: false, loose: undefined }, ctx)) return true
 		}
 	}
 	return false
@@ -555,7 +570,8 @@ function commandWrites(call: Invocation, ctx: PolicyContext): boolean {
 	return fixer !== undefined && fixer(args)
 }
 
-function segmentWrites(segment: Segment, ctx: PolicyContext): boolean {
+function segmentWrites(segment: Segment, base: PolicyContext): boolean {
+	const ctx = segment.loose === undefined ? base : { ...base, loose: segment.loose }
 	if (segment.targets.some(target => targetIsCode(target, ctx))) return true
 	const call = invocation(segment.words, segment.fed)
 	if (!call.viaXargs) return commandWrites(call, ctx)
@@ -563,11 +579,27 @@ function segmentWrites(segment: Segment, ctx: PolicyContext): boolean {
 	return commandWrites({ ...call, args: [...call.args, ...Array<string>(copies).fill('$XARGS')] }, ctx)
 }
 
-export function movedTo(words: readonly string[], ctx: PolicyContext): string | undefined {
+export type Vars = Map<string, string>
+
+export function assignedIn(words: readonly string[], vars: Vars): void {
+	if (words.length === 0 || !words.every(word => /^[A-Za-z_]\w*=/.test(word))) return
+	for (const word of words) {
+		const at = word.indexOf('=')
+		const name = word.slice(0, at)
+		const value = word.slice(at + 1)
+		if (value === '' || /[\s$`*?[~]/.test(value)) vars.delete(name)
+		else vars.set(name, value)
+	}
+}
+
+export function movedTo(words: readonly string[], ctx: PolicyContext, vars?: Vars): string | undefined {
 	const { cmd, args } = invocation(words, false)
 	if (cmd !== 'cd' && cmd !== 'pushd') return undefined
 	const target = operandsOf(args)[0]
 	if (target === undefined) return ctx.home || UNKNOWN_CWD
+	const named = /^\$(?:(\w+)|\{(\w+)\})$/.exec(target)
+	const known = named === null ? undefined : vars?.get(named[1] ?? named[2] ?? '')
+	if (known !== undefined) return absolute(known, ctx)
 	if (/[$`]/.test(target)) return UNKNOWN_CWD
 	return absolute(target, ctx)
 }
@@ -576,10 +608,12 @@ export function bashWritesCode(command: string, ctx: PolicyContext): boolean {
 	const { segments, nested } = parse(command)
 	if (nested.some(inner => bashWritesCode(inner, ctx))) return true
 	let cwd = ctx.cwd
+	const vars: Vars = new Map()
 	for (const segment of segments) {
 		const here = { ...ctx, cwd }
 		if (segmentWrites(segment, here)) return true
-		cwd = movedTo(segment.words, here) ?? cwd
+		assignedIn(segment.words, vars)
+		cwd = movedTo(segment.words, here, vars) ?? cwd
 	}
 	return false
 }

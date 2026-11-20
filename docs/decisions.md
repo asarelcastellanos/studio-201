@@ -371,3 +371,8 @@ Status: default.
 Why: C15 and C14 only listed `gh pr merge`, `git push` and `gh api` for main, so a local `git merge` on main went unchecked. A `.md` suffix is known even when the directory is not.
 Gave up: allowing a variable path that points into the scratchpad but does not end in `.md`.
 Status: default.
+
+**D101. Merge guard and write guard fixes for #88.** This replaces D100 for three parts. (1) `git merge` passes on main with `--abort`, `--quit` or `--continue` only when that flag is the sole argument after `merge`, so `git merge -m --abort x` is a merge. (2) A write target with a shell variable in it counts as non-code only when the whole word was double-quoted and ends in `.md`, such as `"$X.md"`. An unquoted `$X.md` is code again, because word splitting can turn it into other files. A `$(...)` or backtick target stays code. (6) `git pull` is checked like `git merge`, since it can merge into main. Three more changes record the rest of the rework. (3) A subagent's merge check reads its branch from the agent's own `cwd` in `$.agent.list()`, not the session `cwd`, and falls back to the session `cwd` when the agent is not listed. (4) `cd $VAR` resolves when an earlier segment of the same command assigns `VAR` a literal path with no spaces, `$`, backticks, globs or `~`. Otherwise the cwd stays unknown and counts as main (D55). (5) Each branch or base lookup has its own 10 second timeout, replacing the 20 second budget for the whole command.
+Why: the review showed `-m --abort` and unquoted `$X.md` as bypasses, and a subagent on an issue branch was judged by the main session's branch.
+Gave up: allowing an unquoted `$X.md` target, and a total time cap across the lookups of one command.
+Status: default.
