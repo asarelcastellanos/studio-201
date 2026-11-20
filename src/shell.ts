@@ -1,14 +1,25 @@
-export type Redirect = { operator: string; target: string }
+export const EXPANSION = '\u0001'
+
+export type Redirect = { operator: string; target: string; body?: string }
 
 export type SimpleCommand = {
+  kind: 'command'
   program: string
   args: readonly string[]
   redirects: readonly Redirect[]
+  pipedFrom?: SimpleCommand
 }
+
+export type ShellItem =
+  | SimpleCommand
+  | { kind: 'scope'; items: ShellItem[] }
+  | { kind: 'conditional'; items: ShellItem[] }
+
+type ParsedShell = { items: ShellItem[]; isComplete: boolean }
 
 type Word = { text: string; isPlain: boolean }
 
-type Heredoc = { delimiter: string; stripsTabs: boolean; expands: boolean }
+type Heredoc = { delimiter: string; stripsTabs: boolean; expands: boolean; redirect: Redirect }
 
 type Pending = {
   words: string[]
@@ -17,13 +28,19 @@ type Pending = {
   isCaseHeader: boolean
 }
 
-type Terminator = ')' | '`' | undefined
+type Frame = {
+  kind: 'base' | 'conditional' | 'and-or' | 'function'
+  items: ShellItem[]
+  parent: Frame | undefined
+}
 
 const WORD_BREAKS = new Set([' ', '\t', '\n', ';', '&', '|', '(', ')', '<', '>'])
+const TEST_WORD_BREAKS = new Set([' ', '\t', '\n', ';'])
 const REDIRECT_OPERATORS = ['&>>', '&>', '<<<', '<<-', '<<', '<>', '<&', '<', '>>', '>&', '>|', '>']
-const LEADING_KEYWORDS = new Set(['if', 'then', 'else', 'elif', 'while', 'until', 'do', '{', '!'])
-const CLOSING_KEYWORDS = new Set(['fi', 'done', '}'])
+const LEADING_KEYWORDS = new Set(['then', 'else', 'elif', 'do', '!'])
+const OPENING_KEYWORDS = new Set(['if', 'while', 'until'])
 const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*\+?=/
+const ASSIGNMENT_PREFIX = /^[A-Za-z_][A-Za-z0-9_]*\+?=$/
 
 const newPending = (): Pending => ({
   words: [],
@@ -32,11 +49,12 @@ const newPending = (): Pending => ({
   isCaseHeader: false,
 })
 
-export const parseShell = (source: string): SimpleCommand[] => {
-  const commands: SimpleCommand[] = []
+export const parseShell = (source: string): ParsedShell => {
   const functionNames = new Set<string>()
   const pendingHeredocs: Heredoc[] = []
   let pos = 0
+  let isComplete = true
+  let emit: (item: ShellItem) => void = () => undefined
 
   const peek = (offset = 0) => source[pos + offset]
 
@@ -44,22 +62,66 @@ export const parseShell = (source: string): SimpleCommand[] => {
     while (peek() === ' ' || peek() === '\t') pos += 1
   }
 
-  const skipParenGroup = () => {
+  const readSubstitution = (): string => {
+    const items = parseList(')')
+    emit({ kind: 'scope', items })
+
+    return `${EXPANSION}()`
+  }
+
+  const readBacktick = (): string => {
+    let raw = ''
+    let isClosed = false
+    pos += 1
+
+    while (pos < source.length) {
+      const char = source[pos] ?? ''
+      const next = peek(1)
+
+      if (char === '\\' && (next === '`' || next === '\\' || next === '$')) {
+        raw += next
+        pos += 2
+      } else if (char === '`') {
+        isClosed = true
+        pos += 1
+        break
+      } else {
+        raw += char
+        pos += 1
+      }
+    }
+
+    const inner = parseShell(raw)
+    if (!isClosed || !inner.isComplete) isComplete = false
+    emit({ kind: 'scope', items: inner.items })
+
+    return `${EXPANSION}()`
+  }
+
+  const scanGroup = (open: string, close: string) => {
     let depth = 0
 
     while (pos < source.length) {
       const char = source[pos]
+
+      if (char === '$' && peek(1) === '(' && peek(2) !== '(') {
+        pos += 2
+        readSubstitution()
+        continue
+      }
+
+      if (char === '`') {
+        readBacktick()
+        continue
+      }
+
       pos += 1
-      if (char === '(') depth += 1
-      if (char === ')') depth -= 1
+      if (char === open) depth += 1
+      if (char === close) depth -= 1
       if (depth === 0) return
     }
-  }
 
-  const readSubstitution = (terminator: ')' | '`'): string => {
-    parseList(terminator)
-
-    return terminator === ')' ? '$()' : '`'
+    isComplete = false
   }
 
   const readBraceExpansion = (): string => {
@@ -67,18 +129,27 @@ export const parseShell = (source: string): SimpleCommand[] => {
     let depth = 0
 
     while (pos < source.length) {
-      const char = source[pos]
+      const char = source[pos] ?? ''
+
       if (char === '$' && peek(1) === '(' && peek(2) !== '(') {
         pos += 2
-        text += readSubstitution(')')
+        text += readSubstitution()
         continue
       }
-      pos += 1
+
+      if (char === '`') {
+        text += readBacktick()
+        continue
+      }
+
+      pos += char === '\\' ? 2 : 1
       if (char === '{') depth += 1
       if (char === '}') depth -= 1
       text += char
-      if (depth === 0) break
+      if (depth === 0) return text
     }
+
+    isComplete = false
 
     return text
   }
@@ -88,21 +159,28 @@ export const parseShell = (source: string): SimpleCommand[] => {
 
     if (next === '(' && peek(2) === '(') {
       pos += 1
-      skipParenGroup()
+      scanGroup('(', ')')
 
-      return '$'
+      return EXPANSION
     }
 
     if (next === '(') {
       pos += 2
 
-      return readSubstitution(')')
+      return readSubstitution()
+    }
+
+    if (next === '[') {
+      pos += 1
+      scanGroup('[', ']')
+
+      return EXPANSION
     }
 
     if (next === '{') {
       pos += 1
 
-      return `$${readBraceExpansion()}`
+      return `${EXPANSION}${readBraceExpansion()}`
     }
 
     if (next === "'") {
@@ -110,12 +188,12 @@ export const parseShell = (source: string): SimpleCommand[] => {
       let text = ''
 
       while (pos < source.length && source[pos] !== "'") {
-        if (source[pos] === '\\') {
-          pos += 1
-        }
+        if (source[pos] === '\\') pos += 1
         text += source[pos] ?? ''
         pos += 1
       }
+
+      if (pos >= source.length) isComplete = false
       pos += 1
 
       return text
@@ -123,7 +201,7 @@ export const parseShell = (source: string): SimpleCommand[] => {
 
     pos += 1
 
-    return '$'
+    return EXPANSION
   }
 
   const readDoubleQuoted = (): string => {
@@ -140,19 +218,44 @@ export const parseShell = (source: string): SimpleCommand[] => {
       } else if (char === '$') {
         text += readDollar()
       } else if (char === '`') {
-        pos += 1
-        text += readSubstitution('`')
+        text += readBacktick()
       } else {
         text += char
         pos += 1
       }
     }
+
+    if (pos >= source.length) isComplete = false
     pos += 1
 
     return text
   }
 
-  const readWord = (stopsAtBacktick: boolean): Word | undefined => {
+  const readArrayLiteral = (): string => {
+    let text = '('
+    pos += 1
+
+    while (pos < source.length) {
+      while (/\s/.test(source[pos] ?? 'x')) pos += 1
+
+      if (source[pos] === ')') {
+        pos += 1
+
+        return `${text})`
+      }
+
+      const element = readWord(false)
+      if (element === undefined) pos += 1
+      else text += `${element.text} `
+    }
+
+    isComplete = false
+
+    return text
+  }
+
+  const readWord = (isInTest: boolean): Word | undefined => {
+    const breaks = isInTest ? TEST_WORD_BREAKS : WORD_BREAKS
     let text = ''
     let isPlain = true
     let hasContent = false
@@ -160,7 +263,13 @@ export const parseShell = (source: string): SimpleCommand[] => {
     while (pos < source.length) {
       const char = source[pos] ?? ''
 
-      if (WORD_BREAKS.has(char) || (stopsAtBacktick && char === '`')) break
+      if (char === '(' && ASSIGNMENT_PREFIX.test(text)) {
+        text += readArrayLiteral()
+        isPlain = false
+        continue
+      }
+
+      if (breaks.has(char)) break
       hasContent = true
 
       if (char === '\\') {
@@ -171,6 +280,7 @@ export const parseShell = (source: string): SimpleCommand[] => {
         pos += 2
       } else if (char === "'") {
         const end = source.indexOf("'", pos + 1)
+        if (end === -1) isComplete = false
         const closing = end === -1 ? source.length : end
         text += source.slice(pos + 1, closing)
         pos = closing + 1
@@ -182,8 +292,7 @@ export const parseShell = (source: string): SimpleCommand[] => {
         text += readDollar()
         isPlain = false
       } else if (char === '`') {
-        pos += 1
-        text += readSubstitution('`')
+        text += readBacktick()
         isPlain = false
       } else {
         text += char
@@ -195,6 +304,8 @@ export const parseShell = (source: string): SimpleCommand[] => {
   }
 
   const readHeredocBody = (heredoc: Heredoc) => {
+    const bodyStart = pos
+
     while (pos < source.length) {
       const found = source.indexOf('\n', pos)
       const lineEnd = found === -1 ? source.length : found
@@ -202,6 +313,7 @@ export const parseShell = (source: string): SimpleCommand[] => {
       const compared = heredoc.stripsTabs ? line.replace(/^\t+/, '') : line
 
       if (compared === heredoc.delimiter) {
+        heredoc.redirect.body = source.slice(bodyStart, pos)
         pos = Math.min(lineEnd + 1, source.length)
 
         return
@@ -213,10 +325,9 @@ export const parseShell = (source: string): SimpleCommand[] => {
             pos += 2
           } else if (source[pos] === '$' && peek(1) === '(' && peek(2) !== '(') {
             pos += 2
-            readSubstitution(')')
+            readSubstitution()
           } else if (source[pos] === '`') {
-            pos += 1
-            readSubstitution('`')
+            readBacktick()
           } else {
             pos += 1
           }
@@ -227,6 +338,8 @@ export const parseShell = (source: string): SimpleCommand[] => {
 
       pos = Math.min(pos + 1, source.length)
     }
+
+    heredoc.redirect.body = source.slice(bodyStart)
   }
 
   const readPendingHeredocs = () => {
@@ -235,57 +348,40 @@ export const parseShell = (source: string): SimpleCommand[] => {
 
   const skipCasePattern = () => {
     while (pos < source.length && source[pos] !== ')') {
-      if (source[pos] === "'" || source[pos] === '"') {
-        const end = source.indexOf(source[pos] ?? '', pos + 1)
+      const char = source[pos]
+
+      if (char === '$' && peek(1) === '(' && peek(2) !== '(') {
+        pos += 2
+        readSubstitution()
+      } else if (char === '`') {
+        readBacktick()
+      } else if (char === "'" || char === '"') {
+        const end = source.indexOf(char, pos + 1)
         pos = end === -1 ? source.length : end + 1
       } else {
         pos += 1
       }
     }
+
     pos += 1
-  }
-
-  const commit = (pending: Pending) => {
-    const { words, redirects } = pending
-    if (pending.isLoopHeader || pending.isCaseHeader) return
-
-    if (words[0] === 'function') {
-      const name = words[1]
-      if (name !== undefined) functionNames.add(name)
-
-      return
-    }
-
-    const start = words.findIndex(word => !ASSIGNMENT.test(word))
-    const [program, ...args] = start === -1 ? [] : words.slice(start)
-    const callsFunction = program !== undefined && functionNames.has(program)
-
-    if (program === undefined || callsFunction) {
-      if (redirects.length > 0) commands.push({ program: '', args: [], redirects })
-
-      return
-    }
-
-    commands.push({ program, args, redirects })
   }
 
   const startsWithOperator = (): string | undefined =>
     REDIRECT_OPERATORS.find(operator => source.startsWith(operator, pos))
 
-  const readRedirectTarget = (stopsAtBacktick: boolean): string => {
+  const readRedirectTarget = (): string => {
     skipBlanks()
 
     if ((peek() === '<' || peek() === '>') && peek(1) === '(') {
       pos += 2
-      readSubstitution(')')
 
-      return '<()'
+      return readSubstitution()
     }
 
-    return readWord(stopsAtBacktick)?.text ?? ''
+    return readWord(false)?.text ?? ''
   }
 
-  const readRedirect = (pending: Pending, stopsAtBacktick: boolean) => {
+  const readRedirect = (pending: Pending) => {
     const operator = startsWithOperator()
     if (operator === undefined) return
 
@@ -293,29 +389,159 @@ export const parseShell = (source: string): SimpleCommand[] => {
 
     if (operator === '<<' || operator === '<<-') {
       skipBlanks()
-      const delimiter = readWord(stopsAtBacktick)
+      const delimiter = readWord(false)
+      const redirect: Redirect = { operator: '<<', target: delimiter?.text ?? '' }
+
       pendingHeredocs.push({
         delimiter: delimiter?.text ?? '',
         stripsTabs: operator === '<<-',
         expands: delimiter?.isPlain ?? false,
+        redirect,
       })
-      pending.redirects.push({ operator: '<<', target: delimiter?.text ?? '' })
+      pending.redirects.push(redirect)
 
       return
     }
 
-    pending.redirects.push({ operator, target: readRedirectTarget(stopsAtBacktick) })
+    pending.redirects.push({ operator, target: readRedirectTarget() })
   }
 
-  function parseList(terminator: Terminator): void {
+  const readTestExpression = (pending: Pending) => {
+    pending.words.push('[[')
+
+    while (pos < source.length) {
+      while (peek() === ' ' || peek() === '\t' || peek() === '\n') pos += 1
+
+      if (source.startsWith(']]', pos)) {
+        pos += 2
+        pending.words.push(']]')
+
+        return
+      }
+
+      const word = readWord(true)
+      if (word === undefined) pos += 1
+      else pending.words.push(word.text)
+    }
+
+    isComplete = false
+  }
+
+  function parseList(terminator: ')' | undefined): ShellItem[] {
+    const base: Frame = { kind: 'base', items: [], parent: undefined }
+    const braces: ('function' | 'group')[] = []
+    const savedEmit = emit
+    let frame = base
     let pending = newPending()
     let caseDepth = 0
     let expectsCasePattern = false
-    const stopsAtBacktick = terminator === '`'
+    let hasFunctionBodyPending = false
+    let pipelineStart = 0
+    let isInPipeline = false
+    let lastCommitted: SimpleCommand | undefined
+    let pipeSource: SimpleCommand | undefined
+    let isClosed = false
+
+    emit = item => frame.items.push(item)
+
+    const startStatement = () => {
+      pipelineStart = frame.items.length
+      isInPipeline = false
+      lastCommitted = undefined
+      pipeSource = undefined
+    }
+
+    const pushFrame = (kind: Frame['kind']) => {
+      frame = { kind, items: [], parent: frame }
+      startStatement()
+    }
+
+    const popFrame = () => {
+      const { parent } = frame
+      if (parent === undefined) return
+
+      parent.items.push(
+        frame.kind === 'function'
+          ? { kind: 'scope', items: frame.items }
+          : { kind: 'conditional', items: frame.items },
+      )
+      frame = parent
+      startStatement()
+    }
+
+    const popConditional = () => {
+      while (frame.parent !== undefined) {
+        const { kind } = frame
+        popFrame()
+        if (kind === 'conditional') return
+      }
+    }
+
+    const closeAndOr = () => {
+      while (frame.kind === 'and-or') popFrame()
+    }
+
+    const wrapComponent = () => {
+      const component = frame.items.splice(pipelineStart)
+      if (component.length > 0) frame.items.push({ kind: 'scope', items: component })
+      pipelineStart = frame.items.length
+    }
+
+    const commit = (): SimpleCommand | undefined => {
+      const { words, redirects, isLoopHeader, isCaseHeader } = pending
+      pending = newPending()
+      if (isLoopHeader || isCaseHeader) return undefined
+
+      if (words[0] === 'function') {
+        const name = words[1]
+        if (name !== undefined) functionNames.add(name)
+
+        return undefined
+      }
+
+      const start = words.findIndex(word => !ASSIGNMENT.test(word))
+      const [program, ...args] = start === -1 ? [] : words.slice(start)
+
+      if (program === undefined || functionNames.has(program)) {
+        if (redirects.length === 0) return undefined
+        const bare: SimpleCommand = { kind: 'command', program: '', args: [], redirects }
+        emit(bare)
+
+        return bare
+      }
+
+      const command: SimpleCommand = { kind: 'command', program, args, redirects }
+      if (pipeSource !== undefined) command.pipedFrom = pipeSource
+      pipeSource = undefined
+      emit(command)
+
+      return command
+    }
 
     const finish = () => {
-      commit(pending)
-      pending = newPending()
+      const command = commit()
+      if (command !== undefined) lastCommitted = command
+    }
+
+    const endStatement = () => {
+      finish()
+      if (isInPipeline) wrapComponent()
+      closeAndOr()
+      startStatement()
+    }
+
+    const pipe = () => {
+      finish()
+      pipeSource = lastCommitted
+      isInPipeline = true
+      wrapComponent()
+    }
+
+    const andOr = () => {
+      finish()
+      if (isInPipeline) wrapComponent()
+      if (frame.kind !== 'and-or') pushFrame('and-or')
+      else startStatement()
     }
 
     while (pos < source.length) {
@@ -333,7 +559,7 @@ export const parseShell = (source: string): SimpleCommand[] => {
 
       if (char === '\n') {
         pos += 1
-        finish()
+        endStatement()
         readPendingHeredocs()
         continue
       }
@@ -355,123 +581,181 @@ export const parseShell = (source: string): SimpleCommand[] => {
         continue
       }
 
-      if (char === '`' && stopsAtBacktick) {
-        pos += 1
-        finish()
-
-        return
-      }
-
       if (char === ')') {
         pos += 1
-        finish()
-        if (terminator === ')') return
+        endStatement()
+
+        if (terminator === ')') {
+          isClosed = true
+          break
+        }
+
         continue
       }
 
       if (char === ';') {
         pos += 1
-        finish()
+        endStatement()
+
         if (peek() === ';') {
           pos += 1
           if (caseDepth > 0) expectsCasePattern = true
         }
+
+        continue
+      }
+
+      if (char === '&' && peek(1) === '&') {
+        pos += 2
+        andOr()
+        continue
+      }
+
+      if (char === '|' && peek(1) === '|') {
+        pos += 2
+        andOr()
         continue
       }
 
       if (char === '&' && peek(1) !== '>') {
-        pos += peek(1) === '&' ? 2 : 1
-        finish()
+        pos += 1
+        endStatement()
         continue
       }
 
       if (char === '|') {
-        pos += peek(1) === '|' || peek(1) === '&' ? 2 : 1
-        finish()
+        pos += peek(1) === '&' ? 2 : 1
+        pipe()
         continue
       }
 
       if (char === '(') {
         if (peek(1) === '(') {
-          skipParenGroup()
+          scanGroup('(', ')')
           continue
         }
 
-        const afterParen = source.slice(pos + 1).trimStart()
-
-        if (pending.words.length > 0 && afterParen.startsWith(')')) {
+        if (pending.words.length > 0 && source.slice(pos + 1).trimStart().startsWith(')')) {
           const name = pending.words[0] === 'function' ? pending.words[1] : pending.words[0]
           if (name !== undefined) functionNames.add(name)
           pos = source.indexOf(')', pos) + 1
           pending = newPending()
+          hasFunctionBodyPending = true
           continue
         }
 
         pos += 1
         finish()
-        parseList(')')
+        const items = parseList(')')
+        frame.items.push({ kind: 'scope', items })
         continue
       }
 
       if ((char === '<' || char === '>') && peek(1) === '(') {
         pos += 2
-        readSubstitution(')')
-        pending.words.push('<()')
+        readSubstitution()
+        pending.words.push(`${EXPANSION}()`)
         continue
       }
 
       if (char === '<' || char === '>' || char === '&') {
-        readRedirect(pending, stopsAtBacktick)
+        readRedirect(pending)
         continue
       }
 
-      const word = readWord(stopsAtBacktick)
+      const word = readWord(false)
       if (word === undefined) {
         pos += 1
         continue
       }
 
       const isLeadingPlain = pending.words.length === 0 && word.isPlain
+      const wasFunctionBodyPending = hasFunctionBodyPending
+      hasFunctionBodyPending = false
 
       if (isLeadingPlain && LEADING_KEYWORDS.has(word.text)) continue
 
-      if (isLeadingPlain && CLOSING_KEYWORDS.has(word.text)) {
-        finish()
+      if (isLeadingPlain && OPENING_KEYWORDS.has(word.text)) {
+        pushFrame('conditional')
+        continue
+      }
+
+      if (isLeadingPlain && word.text === '{') {
+        braces.push(wasFunctionBodyPending ? 'function' : 'group')
+        if (wasFunctionBodyPending) pushFrame('function')
+        continue
+      }
+
+      if (isLeadingPlain && word.text === '}') {
+        endStatement()
+        if (braces.pop() === 'function') {
+          while (frame.parent !== undefined) {
+            const { kind } = frame
+            popFrame()
+            if (kind === 'function') break
+          }
+        }
+        continue
+      }
+
+      if (isLeadingPlain && (word.text === 'fi' || word.text === 'done')) {
+        endStatement()
+        popConditional()
         continue
       }
 
       if (isLeadingPlain && word.text === 'esac') {
         caseDepth = Math.max(0, caseDepth - 1)
         expectsCasePattern = false
-        finish()
+        endStatement()
+        popConditional()
         continue
       }
 
-      if (isLeadingPlain && (word.text === 'for' || word.text === 'select')) pending.isLoopHeader = true
+      if (isLeadingPlain && word.text === '[[') {
+        readTestExpression(pending)
+        continue
+      }
+
+      if (isLeadingPlain && (word.text === 'for' || word.text === 'select')) {
+        pending.isLoopHeader = true
+        pushFrame('conditional')
+      }
+
       if (isLeadingPlain && word.text === 'case') pending.isCaseHeader = true
 
       if (pending.isCaseHeader && word.isPlain && word.text === 'in') {
         pending = newPending()
         caseDepth += 1
         expectsCasePattern = true
+        pushFrame('conditional')
         continue
       }
 
       if (pending.words[0] === 'function' && pending.words.length === 2 && word.text === '{') {
         functionNames.add(pending.words[1] ?? '')
         pending = newPending()
+        braces.push('function')
+        pushFrame('function')
         continue
       }
 
-      const isFileDescriptor = word.isPlain && /^\d+$/.test(word.text) && (peek() === '<' || peek() === '>')
+      const isFileDescriptor =
+        word.isPlain && /^\d+$/.test(word.text) && (peek() === '<' || peek() === '>')
 
       if (!isFileDescriptor) pending.words.push(word.text)
     }
 
-    finish()
+    if (terminator === ')' && !isClosed) isComplete = false
+
+    endStatement()
+    while (frame.parent !== undefined) popFrame()
+    emit = savedEmit
+
+    return base.items
   }
 
-  parseList(undefined)
+  const items = parseList(undefined)
 
-  return commands
+  return { items, isComplete }
 }
