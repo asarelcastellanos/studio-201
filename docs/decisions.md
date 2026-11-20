@@ -186,6 +186,11 @@ Status: agreed.
 Why: it gives both roles one current reference for built-in browser features and browser support.
 Status: agreed.
 
+**D44. C14 is a habit guard.** It stops an honest main session from editing code by habit. It is not a security boundary. Writes are allowed only to `.md` files, the session scratchpad and `/dev`. The policy refuses the common ways to write a file, including shell redirects, formatters and fixers, interpreters run with `-c`, `-e` or `-r`, and `xargs` wrappers. A variable as a write target is refused, not guessed. Branch operations (switch, merge, rebase, pull, cherry-pick, am and checkout of a branch) are out of scope.
+Known limits: variable or substitution indirection, quote tricks such as `$'..'`, running a script file, package scripts (`npm run`, `make`), and installers.
+Why: a guard that tries to catch every trick has no end, and it starts denying honest commands.
+Status: agreed.
+
 **D45. Ponytail shapes coder, mechanic and reviewer. accessibility-skills is linked, not adapted.** Coder and mechanic take ponytail's smallest-complete-change ladder, and reviewer takes its review order. ui-builder and design-critic link mgifford/accessibility-skills as a reference and copy none of its text.
 Why: ponytail is MIT and gives a short rule for the smallest complete change. accessibility-skills is AGPL-3.0, and adapting its text would force our files to AGPL-3.0.
 Gave up: accessibility rules in our own words until 0.3.

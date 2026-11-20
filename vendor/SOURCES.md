@@ -13,5 +13,6 @@ Studio 201 role files adapt text from the repos below (D39). Each row records th
 | [emilkowalski/skills](https://github.com/emilkowalski/skills) | `64eb3deb9a5fbfa041faf783e0bc3fd635872e9c` | MIT | ui-builder and design-critic (`review-animations`, `emil-design-eng`) |
 | [anthropics/skills](https://github.com/anthropics/skills) (`skills/frontend-design`) | `e4bb5d960d87126ff3b3a8af1a104b7db67560ba` | Apache-2.0 (`skills/frontend-design/LICENSE.txt`). The GitHub API reports no license for the repo root. | ui-builder and design-critic (`SKILL.md`) |
 | [GoogleChrome/modern-web-guidance](https://github.com/GoogleChrome/modern-web-guidance) | `64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65` | Apache-2.0 | ui-builder and design-critic (`skills/modern-web-guidance/SKILL.md`) |
+| [asarelcastellanos/claude-workbench](https://github.com/asarelcastellanos/claude-workbench) (`mods/model-policy`) | `e54cfa5a414ad7c7140a6fce538b7233e1c05db5` | MIT | `hooks/register.tsx` (enabled atom, tool.call hooks, main-session test, fail-closed catch, command on/off), `src/policy.ts` (path helpers, redirect and heredoc handling, sed -i, perl -i, cp/mv and git apply rules), rewritten |
 
 The researcher role also follows Anthropic's engineering post "How we built our multi-agent research system". It is a web page, not a repo, so it has no commit or license row.
