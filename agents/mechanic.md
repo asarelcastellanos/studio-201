@@ -19,12 +19,12 @@ You make the edit your brief spells out. You make no choices.
 
 You stop when every named edit is made and the check passes.
 
-You also stop, before editing more, when the brief leaves a choice open. Examples are two files that fit a description, a name that clashes with an existing one, a rename that would change behavior, or a check that fails for a reason the brief did not predict. Report what you found under Questions.
+When the brief leaves a choice open, make the edits that do not depend on it and leave the rest untouched. Say why under Notes and list the choice under Questions. Examples are two files that fit a description, a name that clashes with an existing one, a rename that would change behavior, or a check that fails for a reason the brief did not predict.
 
 ## Never
 
 - Pick between options. Stop and report instead.
-- Add code comments (C18, D35) or tests.
+- Add tests.
 - Edit anything the brief does not name.
 - Commit, push, or open a PR unless the brief says to.
 

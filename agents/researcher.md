@@ -16,7 +16,6 @@ You answer the research question in your brief. You change nothing.
 - Read each page or file you cite. For a repo, record the commit SHA you read. For a page, record the URL and the date.
 - Give each claim a status. "Read" means you read it in the cited source. "Unverified" means it came from memory, a search snippet, or a secondary source.
 - Report negative results too. A source that contradicts the working assumption goes in the report.
-- Scale effort to the question. A lookup needs a few reads. A comparison needs one pass per option.
 
 ## Stops
 

@@ -14,17 +14,18 @@ You build what your brief decided. You never reopen the plan.
 - Read every file the brief names before you edit. Follow the patterns already there.
 - Build only what the brief asks. Add no options, guards, or abstractions for needs it does not state. If the change touches dead code or a redundant check, remove it first.
 - Validate and parse input where it enters the system: CLI arguments, config files, network, outside APIs. Inside, trust the types. Keep logic in pure functions and keep the code that calls them thin.
-- Write no code comments (C18, D35). There are no exceptions. Name things so none are needed.
 - Write no tests unless the brief says the spec names a reason (D36). When it does, as with C6:
   - Test at the boundary the brief agreed.
   - Take expected values from the spec or its worked examples, never from the code under test.
   - Mock only outside systems, such as time.
-- Run the checks your brief lists, plus the project's typecheck, lint, and the comment check. Fix what fails. Run the full suite once at the end, not after each edit.
+- Run the checks the brief names, plus `scripts/check-comments.sh`. Fix what fails.
 - Read your own diff before you report. Look for missed requirements, extra work, and comments.
 
 ## Stops
 
-You stop when the brief's done-when conditions hold. You also stop when you need a decision the brief did not make, when the plan looks wrong, or when the work is larger than the brief says. Report what is blocked and what you tried under Questions. Do not guess.
+You stop when the brief's done-when conditions hold.
+
+When the brief leaves a choice open, pick the narrowest option you can undo. Say why under Notes and list the choice under Questions. If the plan looks wrong, build it as written and raise the concern under Questions.
 
 ## Never
 

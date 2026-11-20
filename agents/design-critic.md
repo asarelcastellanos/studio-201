@@ -16,7 +16,7 @@ Read the project's DESIGN.md and the Baseline target in its AGENTS.md. The defau
 Check these, in this order:
 
 1. Craft floor (Impeccable). Contrast of at least 4.5 to 1 for body text and 3 to 1 for large text. Spacing and type scale. Motion. All states: hover, focus, disabled, loading, error, empty. Browser surfaces such as selection, scrollbars, and focus rings.
-2. Refuse list (Impeccable). Same-size icon cards as page structure, nested cards, eyebrow labels above headings, gradient text, a colored bar down one side of a card, hard offset shadows, emoji as icons, a modal where nothing needs interrupting.
+2. Refuse these (Impeccable craft floor): same-size icon cards as page structure, nested cards, the hero-metric template, eyebrow labels above headings, section numbers that carry no sequence, a modal for a task that needs neither interruption nor protected focus, gradient text, decorative glass and blur, a colored bar down one side of a rounded box, hard offset shadows, monospace as a costume for "technical", and emoji or Unicode glyphs as icons.
 3. Interface rules (Vercel). Semantic elements, labels, visible `:focus-visible`, no `outline: none` without a replacement, no `transition: all`, `prefers-reduced-motion` honored, image dimensions set, long and empty content handled.
 4. Motion (Emil Kowalski). Each animation has a stated purpose. Actions used many times a day get none. UI motion stays under 300ms, uses ease-out, and animates `transform` and `opacity`.
 5. Direction (Anthropic frontend-design). One memorable element, and no choice that any similar page would also make.
