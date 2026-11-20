@@ -13,7 +13,7 @@ type Segment = { words: string[]; targets: string[]; fed: boolean }
 
 type Parsed = { segments: Segment[]; nested: string[] }
 
-type Invocation = { cmd: string; args: string[]; viaXargs: boolean; fed: boolean }
+export type Invocation = { cmd: string; args: string[]; viaXargs: boolean; fed: boolean }
 
 type InterpreterFlags = { short: string; long: readonly string[] }
 
@@ -34,7 +34,7 @@ const VALUE_FLAGS: Record<string, readonly string[]> = {
 
 const KEYWORDS = new Set(['if', 'then', 'do', 'else', 'elif', 'while', 'until', '}'])
 
-const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh'])
+export const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh'])
 
 const INTERPRETER_FLAGS: Record<string, InterpreterFlags> = {
 	node: { short: 'ep', long: ['--eval', '--print'] },
@@ -81,7 +81,7 @@ function inside(abs: string, root: string): boolean {
 	return abs === root || abs.startsWith(root + '/')
 }
 
-function absolute(path: string, ctx: PolicyContext): string {
+export function absolute(path: string, ctx: PolicyContext): string {
 	const expanded = ctx.home && /^~(?:\/|$)/.test(path) ? ctx.home + path.slice(1) : path
 	return normalize(expanded, ctx.cwd)
 }
@@ -127,7 +127,7 @@ function closingParen(text: string, open: number): number {
 	return text.length
 }
 
-function parse(command: string): Parsed {
+export function parse(command: string): Parsed {
 	const segments: Segment[] = []
 	const nested: string[] = []
 	const heredocs: string[] = []
@@ -310,7 +310,7 @@ function has(args: readonly string[], ...names: string[]): boolean {
 	return args.some(arg => names.some(name => arg === name || arg.startsWith(`${name}=`)))
 }
 
-function valueOf(args: readonly string[], short: string | undefined, long: string | undefined): string | undefined {
+export function valueOf(args: readonly string[], short: string | undefined, long: string | undefined): string | undefined {
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i] ?? ''
 		if (long !== undefined && arg === `--${long}`) return args[i + 1]
@@ -329,7 +329,7 @@ function clusterHas(arg: string, letters: string): boolean {
 	return [...letters].some(letter => cluster.includes(letter))
 }
 
-function invocation(words: readonly string[], fed: boolean): Invocation {
+export function invocation(words: readonly string[], fed: boolean): Invocation {
 	let at = 0
 	let viaXargs = false
 	while (at < words.length) {
@@ -431,7 +431,7 @@ const FIXERS: Record<string, (args: readonly string[]) => boolean> = {
 	cargo: args => (args[0] === 'fmt' && !has(args, '--check')) || has(args, '--fix'),
 }
 
-function looksLikeRef(operand: string): boolean {
+export function looksLikeRef(operand: string): boolean {
 	if (operand === '.' || operand.startsWith(':') || operand.startsWith('/') || operand.startsWith('~')) return false
 	if (/\.[A-Za-z][A-Za-z0-9]*$/.test(operand)) return false
 	if (operand.includes('/')) return REF_PREFIXES.includes(operand.split('/')[0] ?? '')
@@ -562,7 +562,7 @@ function segmentWrites(segment: Segment, ctx: PolicyContext): boolean {
 	return commandWrites({ ...call, args: [...call.args, ...Array<string>(copies).fill('$XARGS')] }, ctx)
 }
 
-function movedTo(words: readonly string[], ctx: PolicyContext): string | undefined {
+export function movedTo(words: readonly string[], ctx: PolicyContext): string | undefined {
 	const { cmd, args } = invocation(words, false)
 	if (cmd !== 'cd' && cmd !== 'pushd') return undefined
 	const target = operandsOf(args)[0]

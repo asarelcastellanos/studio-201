@@ -1,10 +1,13 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
+import { ASK_REASON, MERGE_REFUSAL, mergesIntoMain } from '../src/merge'
+import type { Lookup } from '../src/merge'
 import { REFUSAL, bashWritesCode, isCodePath, readOnlyRefusal, readOnlyRole } from '../src/policy'
 import type { PolicyContext } from '../src/policy'
 
 const NAME = 'studio'
+const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
 const USAGE = 'Usage: /studio policy [on|off]'
 
@@ -70,6 +73,60 @@ async function restriction($: EngineInterface, agentId: string | undefined): Pro
 	return role === undefined ? undefined : { strict: true, refusal: readOnlyRefusal(role) }
 }
 
+function commandOf(input: unknown): string {
+	return typeof input === 'object' && input !== null && 'command' in input && typeof input.command === 'string'
+		? input.command
+		: ''
+}
+
+async function resolveLookup($: EngineInterface, request: Lookup, budgetMs: number): Promise<string | undefined> {
+	if (budgetMs <= 0) return undefined
+	const argv =
+		request.kind === 'branch'
+			? ['git', 'branch', '--show-current']
+			: [
+					'gh',
+					'pr',
+					'view',
+					...(request.selector === '' ? [] : [request.selector]),
+					...(request.repo === undefined ? [] : [`--repo=${request.repo}`]),
+					'--json',
+					'baseRefName',
+					'--jq',
+					'.baseRefName',
+				]
+	try {
+		const result = await $.process.run(argv, { cwd: request.cwd, timeoutMs: budgetMs })
+		const out = result.stdout.trim()
+		return result.exitCode === 0 && out !== '' ? out : undefined
+	} catch {
+		return undefined
+	}
+}
+
+async function mergesMain($: EngineInterface, command: string): Promise<boolean> {
+	const cwd = await $.session.cwd()
+	const home = (await $.env.get('HOME')) ?? ''
+	const deadline = Date.now() + LOOKUP_BUDGET_MS
+	const known = new Map<string, string | undefined>()
+	const pending = new Map<string, Lookup>()
+	for (;;) {
+		pending.clear()
+		const verdict = mergesIntoMain(command, {
+			cwd,
+			home,
+			lookup: request => {
+				const key = JSON.stringify(request)
+				if (known.has(key)) return known.get(key)
+				pending.set(key, request)
+				return undefined
+			},
+		})
+		if (!verdict || pending.size === 0) return verdict
+		for (const [key, request] of pending) known.set(key, await resolveLookup($, request, deadline - Date.now()))
+	}
+}
+
 export const register: Register = on => {
 	on('session.start', async ($, e, next) => {
 		await $.command.register({
@@ -108,4 +165,19 @@ export const register: Register = on => {
 	}).catch(($, e, next) =>
 		next.called ? next(e) : { deny: `${REFUSAL} The policy check failed, so the command is refused.` },
 	)
+
+	on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+		if (e.agentId === undefined || !(await mergesMain($, e.command))) return next(e)
+		return { deny: MERGE_REFUSAL }
+	}).catch(($, e, next) =>
+		next.called ? next(e) : { deny: `${MERGE_REFUSAL} The merge check failed, so the command is refused.` },
+	)
+
+	on('tool.check', { tool: 'Bash' }, async ($, e, next) => {
+		if (e.agentId !== undefined) return next(e)
+		const merges = await mergesMain($, commandOf(e.input))
+		const verdict = await next(e)
+		if (!merges || verdict.decision === 'deny') return verdict
+		return { decision: 'ask', reason: ASK_REASON }
+	}).catch(($, e, next) => (next.called ? next(e) : { decision: 'ask', reason: ASK_REASON }))
 }
