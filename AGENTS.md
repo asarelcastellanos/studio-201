@@ -27,3 +27,4 @@
 - Squash merge issue PRs into `feature/<name>`.
 - Squash merge `feature/<name>` into `release/v<version>` once review and QA pass. Do not ask the owner.
 - Only `release/v<version>` merges into main. Before that merge, post a review package and ask the owner. The package has the PR link, what changed, QA evidence per claim, and anything still open. Merge only after the owner approves.
+- The PR from `feature/<name>` into `release/v<version>` documents the work: each claim with its QA verdict and evidence link, the issue PRs merged, review rounds and the findings fixed, decisions made (D numbers), and known limits.
