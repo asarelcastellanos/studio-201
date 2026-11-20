@@ -15,3 +15,9 @@ Source: owner screenshots, 2026-11-20, 263 columns, feature/session-meter loaded
 7d reads 41% in the pane and 42% in `/usage` in every shot, including the two taken 2 minutes apart. The pane rounds down where Claude Code shows the higher figure, so a fractional value is likely truncated. Tracked in #73.
 
 Verdict: 5h and both resets hold. 7d is 1 point low.
+
+## After #73
+
+Verdict: PASS.
+
+- 7d percent: D80 (agreed 2026-11-20) says the pane rounds to nearest and the one-point gap was a stale reading, not truncation. The render in `qa/v0.1/C4/render-after-73.txt` feeds 41.6 and shows `7d ███░░░░░ 42%`, with 5h fed 12.4 showing 12%.
