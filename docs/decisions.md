@@ -256,3 +256,23 @@ Status: default, accepted with the pane design on 2026-11-19.
 | A9 | Each repo stores its board URL in `.studio/config.json`. | No lookup each time. | One more file per repo. |
 | A10 | Running agents are ordered longest first. | A stuck agent rises to the top. | The newest work sits lower. |
 | A11 | The pane is rebuilt from scratch, keeping the old monitor's layout. The old monitor is turned off at install. | Clean repo. | Rewrites working code. |
+
+## Forecast, issue #12
+
+**D60. Unit tests run with `node --test` and Node's built-in TypeScript type stripping.** The repo had no test runner, no `package.json` and no build step. The test imports `../src/forecast.ts` with the extension. The command is `node --test tests/forecast.test.ts`.
+Why: it adds no dependency and no build step, and C6 needs one test file.
+Gave up: a runner such as vitest, and extensionless imports in this file.
+Status: default.
+
+**D61. The forecast needs at least 3 readings inside the window span.** Fewer than 3, or readings that all share one time, return "not enough data" (C7). A reading at 100% or more needs no fit, so it counts as a hit at that reading's time even with fewer than 3.
+Why: two points always make a perfect line, so 3 is the smallest count that shows a trend. A 100% reading is a fact, not a projection.
+Gave up: a longer minimum, which would delay the first forecast.
+Status: default.
+
+**D62. A forecast that lands exactly on the reset time counts as "pace is fine".** The forecast time must be strictly before the reset. A fitted time earlier than now is moved to now.
+Why: at the reset the window empties, so 100% is never held.
+Status: default.
+
+**D63. The Pacific time format is "Sat Nov 21, 12:10 AM PST", with the zone abbreviation.** The formatter uses `Intl.DateTimeFormat` with `America/Los_Angeles`.
+Why: A5 asks for day, date and time. The abbreviation tells PST from PDT on 1 November, when 1:10 AM happens twice.
+Status: default.
