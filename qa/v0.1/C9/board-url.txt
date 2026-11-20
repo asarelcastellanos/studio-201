@@ -1,0 +1,6 @@
+$ gh project view 8 --owner asarelcastellanos --format json --jq .url
+https://github.com/users/asarelcastellanos/projects/8
+$ curl -sI -o /dev/null -w "%{http_code} %{redirect_url}\n" https://github.com/users/asarelcastellanos/projects/8
+404 
+
+The unauthenticated 404 is expected. The board is a private user project, so only a signed-in browser sees it. The authenticated gh call above is the resolution proof.
