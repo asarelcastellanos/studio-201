@@ -11,6 +11,7 @@ export type AgentDir = (typeof AGENT_DIRS)[number]
 export type Mode = 'archive' | 'delete'
 
 export type Paths = {
+	home: string
 	claudeDir: string
 	agentsCopy: string
 	archiveRoot: string
@@ -24,6 +25,7 @@ export function pathsFor(home: string, configDir: string | undefined): Paths {
 	const claudeDir = configDir === undefined || configDir === '' ? `${home}/.claude` : configDir.replace(/\/+$/, '')
 	const codexDir = `${home}/.codex`
 	return {
+		home,
 		claudeDir,
 		agentsCopy: `${claudeDir}/studio-201/AGENTS.md`,
 		archiveRoot: `${claudeDir}/studio-201/archive`,
@@ -34,7 +36,7 @@ export function pathsFor(home: string, configDir: string | undefined): Paths {
 	}
 }
 
-export type CodexState = 'no-codex' | 'missing' | 'ours' | 'foreign'
+export type CodexState = 'no-codex' | 'missing' | 'ours' | 'stale' | 'foreign'
 export type DirState = { isLink: boolean; names: string[] }
 
 export type Snapshot = {
@@ -54,7 +56,7 @@ export type Item =
 
 export type Step =
 	| { kind: 'write'; path: string; text: string; lines: string[] }
-	| { kind: 'link'; path: string; target: string; lines: string[] }
+	| { kind: 'link'; path: string; target: string; replace: boolean; lines: string[] }
 
 export type Plan = { items: Item[]; steps: Step[]; notes: string[]; blocked: string | undefined }
 
@@ -98,6 +100,21 @@ function importLineFor(paths: Paths): string {
 	return `@${paths.agentsCopy}`
 }
 
+const OUR_COPY_SUFFIX = '/studio-201/AGENTS.md'
+
+function expandHome(path: string, home: string): string {
+	if (path.startsWith('~/')) return `${home}${path.slice(1)}`
+	const named = /^\$\{?HOME\}?(\/.*)$/.exec(path)
+	return named === null ? path : `${home}${named[1]}`
+}
+
+function ourImportTarget(line: string, paths: Paths): string | undefined {
+	const text = line.trim()
+	if (!text.startsWith('@')) return undefined
+	const target = expandHome(text.slice(1), paths.home)
+	return target.endsWith(OUR_COPY_SUFFIX) ? target : undefined
+}
+
 export function planAgentsCopy(source: string, copy: string | undefined, paths: Paths): Step | undefined {
 	if (copy === source) return undefined
 	const verb = copy === undefined ? 'Copy' : 'Refresh'
@@ -115,8 +132,9 @@ function planClaudeMd(current: Snapshot['claudeMd'], paths: Paths): { item?: Ite
 		.split(/\r?\n/)
 		.map(line => line.trim())
 		.filter(line => line !== '')
-	const onlyImport = filled.length > 0 && filled.every(line => line === importLine)
-	if (onlyImport && !current.isLink) return {}
+	const targets = filled.map(line => ourImportTarget(line, paths))
+	const onlyOurs = filled.length > 0 && targets.every(target => target !== undefined)
+	if (onlyOurs && !current.isLink && targets.every(target => target === paths.agentsCopy)) return {}
 	const step: Step = {
 		kind: 'write',
 		path: paths.claudeMd,
@@ -124,7 +142,7 @@ function planClaudeMd(current: Snapshot['claudeMd'], paths: Paths): { item?: Ite
 		lines: [`Make ${paths.claudeMd} only the line ${importLine}`],
 	}
 	if (current.isLink) return { item: { how: 'move', group: 'rules', path: paths.claudeMd, rel: 'CLAUDE.md' }, step }
-	if (filled.length === 0) return { step }
+	if (filled.length === 0 || onlyOurs) return { step }
 	return {
 		item: {
 			how: 'save',
@@ -195,12 +213,13 @@ function planSettings(raw: string | undefined, paths: Paths): SettingsPlan {
 	}
 }
 
-function codexLink(paths: Paths): Step {
+function codexLink(paths: Paths, replace: boolean): Step {
 	return {
 		kind: 'link',
 		path: paths.codexAgents,
 		target: paths.agentsCopy,
-		lines: [`Link ${paths.codexAgents} to ${paths.agentsCopy}`],
+		replace,
+		lines: [`${replace ? 'Relink' : 'Link'} ${paths.codexAgents} to ${paths.agentsCopy}`],
 	}
 }
 
@@ -218,10 +237,13 @@ export function planSetup(snapshot: Snapshot, paths: Paths): Plan {
 	switch (snapshot.codex) {
 		case 'foreign':
 			items.push({ how: 'move', group: 'rules', path: paths.codexAgents, rel: 'codex/AGENTS.md' })
-			steps.push(codexLink(paths))
+			steps.push(codexLink(paths, false))
+			break
+		case 'stale':
+			steps.push(codexLink(paths, true))
 			break
 		case 'missing':
-			steps.push(codexLink(paths))
+			steps.push(codexLink(paths, false))
 			break
 		case 'no-codex':
 			notes.push(`${paths.codexDir} does not exist, so Codex was not linked.`)
@@ -254,7 +276,9 @@ export async function readSnapshot(io: SetupIo, paths: Paths, sourcePath: string
 	if (codexEntries !== undefined) {
 		codex = 'missing'
 		if (codexEntries.includes('AGENTS.md')) {
-			codex = (await io.readlink(paths.codexAgents)) === paths.agentsCopy ? 'ours' : 'foreign'
+			const target = await io.readlink(paths.codexAgents)
+			if (target === paths.agentsCopy) codex = 'ours'
+			else codex = target?.endsWith(OUR_COPY_SUFFIX) === true ? 'stale' : 'foreign'
 		}
 	}
 	const claudeMdText = await io.read(paths.claudeMd)
@@ -293,15 +317,25 @@ function itemLabel(item: Item): string {
 	return item.how === 'save' ? item.label : item.path
 }
 
-export function restoreNotes(items: readonly Item[], archiveDir: string, stamp: string): string {
+export function restoreNotes(
+	items: readonly Item[],
+	archiveDir: string,
+	stamp: string,
+	archived: ReadonlySet<string>,
+): string {
 	const lines = [
 		'# Restore',
 		'',
-		`Studio 201 setup archived these items on ${stamp}. Each one is in this folder at the same relative path.`,
+		`Studio 201 setup started archiving these items on ${stamp}. Each archived item is in this folder at the same relative path. An item marked as not archived is still where it was.`,
 		'',
 	]
 	for (const item of items) {
-		lines.push(`## ${itemLabel(item)}`, '', `Archived at ${archiveDir}/${item.rel}.`, '')
+		lines.push(`## ${itemLabel(item)}`, '')
+		if (!archived.has(item.rel)) {
+			lines.push(`Not archived. ${item.how === 'move' ? 'It is' : 'The original is'} still at ${item.path}.`, '')
+			continue
+		}
+		lines.push(`Archived at ${archiveDir}/${item.rel}.`, '')
 		if (item.how === 'move') {
 			lines.push('To put it back, run:', '', `    mv ${quoted(`${archiveDir}/${item.rel}`)} ${quoted(item.path)}`, '')
 		} else {
@@ -322,8 +356,10 @@ async function freshArchiveDir(io: SetupIo, paths: Paths, stamp: string): Promis
 
 export async function applySteps(io: SetupIo, steps: readonly Step[], done: string[] = []): Promise<void> {
 	for (const step of steps) {
-		if (step.kind === 'link') await io.link(step.path, step.target)
-		else await io.writeAtomic(step.path, step.text)
+		if (step.kind === 'link') {
+			if (step.replace) await io.remove(step.path)
+			await io.link(step.path, step.target)
+		} else await io.writeAtomic(step.path, step.text)
 		done.push(...step.lines)
 	}
 }
@@ -335,23 +371,37 @@ export async function applyPlan(io: SetupIo, paths: Paths, plan: Plan, mode: Mod
 	let archiveDir: string | undefined
 	try {
 		if (plan.items.length > 0 && mode === 'archive') {
-			archiveDir = await freshArchiveDir(io, paths, stamp)
+			const dir = await freshArchiveDir(io, paths, stamp)
+			archiveDir = dir
+			const archived = new Set<string>()
+			const writeNotes = (): Promise<void> => io.write(`${dir}/RESTORE.md`, restoreNotes(plan.items, dir, stamp, archived))
+			await writeNotes()
+			done.push(`Wrote ${dir}/RESTORE.md`)
 			for (const item of plan.items) {
-				const target = `${archiveDir}/${item.rel}`
-				if (item.how === 'move') {
-					await io.move(item.path, target)
-					done.push(`Moved ${item.path} to ${target}`)
-				} else {
-					await io.write(target, item.text)
-					done.push(`Saved a copy of ${item.label} at ${target}`)
+				const target = `${dir}/${item.rel}`
+				try {
+					if (item.how === 'move') {
+						await io.move(item.path, target)
+						done.push(`Moved ${item.path} to ${target}`)
+					} else {
+						await io.write(target, item.text)
+						done.push(`Saved a copy of ${item.label} at ${target}`)
+					}
+					archived.add(item.rel)
+					await writeNotes()
+				} catch (error) {
+					await writeNotes().catch(() => undefined)
+					throw error
 				}
 			}
-			await io.write(`${archiveDir}/RESTORE.md`, restoreNotes(plan.items, archiveDir, stamp))
-			done.push(`Wrote ${archiveDir}/RESTORE.md`)
 		} else {
 			for (const item of plan.items) {
 				if (item.how !== 'move') continue
-				await io.remove(item.path)
+				try {
+					await io.remove(item.path)
+				} catch (error) {
+					throw new Error(`${item.path} is partly deleted (${error instanceof Error ? error.message : String(error)})`)
+				}
 				done.push(`Deleted ${item.path}`)
 			}
 		}
