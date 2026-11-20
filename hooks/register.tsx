@@ -23,12 +23,14 @@ import {
 } from '../src/setup'
 import type { Mode, Paths, SetupIo } from '../src/setup'
 import { renderPane } from '../src/pane'
+import { parseReadings, recordReadings, viewWindows } from '../src/readings'
 import { runUpdate } from '../src/update'
 import type { UpdateIo } from '../src/update'
 import { addTurn, sumTokens } from '../src/usage'
 import type { Totals } from '../src/usage'
 
 const NAME = 'studio'
+const READINGS_KEY = 'readings'
 const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
 const USAGE = 'Usage: /studio opens the pane, /studio policy [on|off], /studio setup or /studio update'
@@ -371,10 +373,13 @@ export const register: Register = on => {
 	}).catch(() => ({ text: 'studio: the command failed.' }))
 
 	on('turn.complete', async ($, e, next) => {
+		const usage = await $.session.usage()
 		if (e.usage !== undefined) {
-			syncTotals((await $.session.usage()).startedAt)
+			syncTotals(usage.startedAt)
 			addTurn(totals, e.usage.model, e.usage)
 		}
+		const readings = recordReadings(parseReadings(await $.store.get(READINGS_KEY)), usage.rateLimits, await $.clock.now())
+		await $.store.set(READINGS_KEY, readings)
 		$.ui.invalidate('ui.render')
 		return next(e)
 	}).catch(($, e, next) => {
@@ -393,6 +398,7 @@ export const register: Register = on => {
 			startedAt: usage.startedAt,
 			tokens: sumTokens(totals),
 			cost: usage.cost,
+			windows: viewWindows(parseReadings(await $.store.get(READINGS_KEY)), usage.rateLimits, await $.clock.now()),
 			context:
 				breakdown === undefined
 					? usage.context

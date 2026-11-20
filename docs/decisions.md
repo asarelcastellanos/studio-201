@@ -312,3 +312,23 @@ Status: default.
 Why: QA compares the pane with /context, which measures against the compaction window.
 Gave up: the exact token counts of the `full` detail.
 Status: default.
+
+**D75. Usage readings persist in the plugin store, capped to 7 days.** Each `turn.complete` reads `rateLimits` and appends one reading per window to `$.store` under the key `readings`. Readings older than 7 days are dropped on each write. The pane reads them back on every draw. The store is a JSON file kept between sessions and reloads, so the 7-day forecast keeps its 24 hours of history.
+Why: A1 needs 24 hours of history for 7d, and in-memory readings would be lost on every reload.
+Gave up: readings that are exact per session. The store is shared by every session of the plugin, and two sessions finishing a turn at once may drop one reading.
+Status: default.
+
+**D76. A drop in percent clears that window's readings.** If a new reading is lower than the last one, the window has reset, so the mod keeps only the new reading. The forecast function fits one straight line, and readings from before a reset would give it a false downward slope.
+Why: usage inside a window only rises, so a drop means a reset, and the forecast needs no change.
+Gave up: forecasts right after a reset, which show "not enough readings" until three new readings arrive.
+Status: default.
+
+**D77. Pane times are "Fri 11/20" and "2:00 PM PT" on two lines.** The pane does not use `formatPacific`, which is 26 characters wide. The day and date line comes from `formatDay` in `src/usage.ts`, the time from `formatClock`, and the pane adds "PT". A window with no `resetsAt` shows no reset line and no forecast.
+Why: the pane is 20 columns wide, and the design page wraps its times the same way.
+Gave up: the zone abbreviation PST or PDT, which "PT" replaces.
+Status: default.
+
+**D78. A change in resetsAt clears that window's readings.** Each stored reading carries the window's `resetsAt`. A new reading clears the window's history only when its `resetsAt` differs from the last stored one. A dip in percent with the same `resetsAt` keeps the history. This replaces D76.
+Why: a 0.1 dip after 24 rising 7d readings wiped the history and dropped the forecast to not-enough-data, while the reset time is the signal the API gives for a new window.
+Gave up: detecting a reset when `resetsAt` is missing. Such readings are appended and never clear the history.
+Status: default.

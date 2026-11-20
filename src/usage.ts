@@ -68,3 +68,15 @@ export function formatBar(percent: number, width: number): string {
 	const filled = Math.min(width, Math.max(0, Math.round((percent / 100) * width)))
 	return '█'.repeat(filled) + '░'.repeat(width - filled)
 }
+
+const DAY = new Intl.DateTimeFormat('en-US', {
+	timeZone: 'America/Los_Angeles',
+	weekday: 'short',
+	month: 'numeric',
+	day: 'numeric',
+})
+
+export function formatDay(at: number): string {
+	const parts = Object.fromEntries(DAY.formatToParts(at).map((p) => [p.type, p.value]))
+	return `${parts.weekday} ${parts.month}/${parts.day}`
+}
