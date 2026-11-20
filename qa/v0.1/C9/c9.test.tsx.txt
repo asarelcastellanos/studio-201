@@ -1,0 +1,51 @@
+import { test, mock } from 'claude-code/testing'
+
+const CWD = '/private/tmp/claude-501/-Users-asarelcastellanos-Documents-studio-201/b878a821-cf5a-4df3-906d-0bd44cbad01d/scratchpad/wt15'
+const CONFIG_PATH = CWD + '/.studio/config.json'
+const CONFIG_BYTES = "{\"board\": \"https://github.com/users/asarelcastellanos/projects/8\"}\n"
+
+function hrefs(node: any): string[] {
+	if (node === null || node === undefined || typeof node !== 'object') return []
+	const own = node.props && typeof node.props.href === 'string' ? [node.props.href] : []
+	return [...own, ...(node.children ?? []).flatMap(hrefs)]
+}
+
+function dump(node: any, depth = 0): string[] {
+	if (node === null || node === undefined || typeof node === 'boolean') return []
+	if (typeof node === 'string') return ['  '.repeat(depth) + JSON.stringify(node)]
+	const href = node.props && typeof node.props.href === 'string' ? ' href=' + node.props.href : ''
+	return ['  '.repeat(depth) + '<' + String(node.type) + href + '>', ...(node.children ?? []).flatMap((c: any) => dump(c, depth + 1))]
+}
+
+async function run($: any, on: any, withConfig: boolean) {
+	mock.clock(on, { now: Date.parse('2026-11-20T20:00:00Z') })
+	mock.store(on, {})
+	on('session.usage', async () => ({ value: { startedAt: Date.parse('2026-11-20T18:02:00Z'), context: { tokens: 1, window: 100, percent: 1 }, rateLimits: [], cost: { usd: 1 } } }) as any)
+	on('session.model', async () => ({ value: 'claude-opus-5-5' }) as any)
+	on('session.cwd', async () => ({ value: CWD }) as any)
+	on('fs.exists', async (_$: any, e: any) => ({ value: withConfig && e.path === CONFIG_PATH }) as any)
+	on('fs.read', async (_$: any, e: any) => ({ value: withConfig && e.path === CONFIG_PATH ? CONFIG_BYTES : '' }) as any)
+	const ui = await $.ui.mount({ plugin: 'studio-201', surface: 'terminal', component: 'Pane', requestId: 'studio-201', props: { title: 'Studio 201', isFocused: false, bodyColumns: 24 } as any })
+	const tree = await ui.drawn()
+	console.log('--- pane tree (header part)')
+	console.log(dump(tree).slice(0, 12).join('\n'))
+	const h = hrefs(tree)
+	console.log('Link hrefs in pane:', JSON.stringify(h))
+	await ui.unmount()
+	const out: any = await $.command.run({ command: 'board', args: '' } as any)
+	console.log('/board text:', JSON.stringify(out.text))
+	return { h, out }
+}
+
+test('C9 with config', async ($, on) => {
+	console.log('=== CASE A: .studio/config.json present')
+	console.log('config bytes:', JSON.stringify(CONFIG_BYTES))
+	const { h, out } = await run($, on, true)
+	console.log('RESULT A: one Link, equals /board text:', h.length === 1 && h[0] === out.text)
+})
+
+test('C9 without config', async ($, on) => {
+	console.log('=== CASE B: no .studio/config.json')
+	const { h, out } = await run($, on, false)
+	console.log('RESULT B: zero Links:', h.length === 0, '| /board is NO_BOARD hint:', out.text === 'No board yet. Run scripts/new-project.sh in this repo.')
+})

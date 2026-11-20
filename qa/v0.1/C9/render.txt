@@ -1,0 +1,44 @@
+$ claude plugin test .   (in a throwaway copy of origin/feature/product-board at 3ede394, test file c9.test.tsx.txt in this folder)
+=== CASE A: .studio/config.json present
+config bytes: "{\"board\": \"https://github.com/users/asarelcastellanos/projects/8\"}\n"
+--- pane tree (header part)
+<Box>
+  <Box>
+    <Text>
+      "Studio 201"
+    <Text>
+      "Opus 5.5"
+    <Link href=https://github.com/users/asarelcastellanos/projects/8>
+      "Board"
+  <Text>
+    " "
+  <Text>
+    "── Session ─────────"
+Link hrefs in pane: ["https://github.com/users/asarelcastellanos/projects/8"]
+/board text: "https://github.com/users/asarelcastellanos/projects/8"
+RESULT A: one Link, equals /board text: true
+=== CASE B: no .studio/config.json
+--- pane tree (header part)
+<Box>
+  <Box>
+    <Text>
+      "Studio 201"
+    <Text>
+      "Opus 5.5"
+  <Text>
+    " "
+  <Text>
+    "── Session ─────────"
+  <Text>
+    "since "
+Link hrefs in pane: []
+/board text: "No board yet. Run scripts/new-project.sh in this repo."
+RESULT B: zero Links: true | /board is NO_BOARD hint: true
+
+c9.test.tsx:
+(pass) C9 with config [60.44ms]
+(pass) C9 without config [30.10ms]
+
+ 2 pass
+ 0 fail
+Ran 2 tests across 1 file. [0.20s]

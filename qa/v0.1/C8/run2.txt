@@ -1,0 +1,3 @@
+$ bash scripts/new-project.sh (run 2)
+GraphQL: Name cannot have a reserved value, Name has already been taken (createProjectV2Field)
+exit=1

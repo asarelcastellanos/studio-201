@@ -207,7 +207,13 @@ Gave up: Keeping a personal setup active next to Studio 201.
 Replaces the parts of S8 and S9 that kept personal rules and only named two mods.
 Status: agreed.
 
-D48 and D49 are on `feature/product-board`. This group starts at D50 so both merge into release/v0.1 without clashing.
+**D48. Board columns and fields.** The Status options are Backlog, Ready, In progress, In review, QA and Done. The fields are Agent (single select: scout, researcher, reviewer, design-critic, qa-runner, coder, ui-builder, writer, mechanic, owner), Type (single select: feature, claim, task) and Version (text).
+Why: the spec names "status columns and fields" without listing them. The columns follow the branch flow (review, then QA). The Agent field records who did the work (D8).
+Status: default.
+
+**D49. The pane Board link waits for the pane frame.** F3 ships `/board` and the board URL reader. The pane header link wires in with F2's pane frame (C4). C9 (#15) stays open until then.
+Why: the plan builds F3 before F2, and there is no pane header yet.
+Status: default.
 
 **D50. `/studio update` runs from main or a `release/v*` branch.** It refuses any other branch. C17 and S7 say main only.
 Why: under D46 the clone tracks release/v0.1 until the first release merges into main, so a main-only update has nothing to pull.
@@ -256,6 +262,15 @@ Status: default, accepted with the pane design on 2026-11-19.
 | A9 | Each repo stores its board URL in `.studio/config.json`. | No lookup each time. | One more file per repo. |
 | A10 | Running agents are ordered longest first. | A stuck agent rises to the top. | The newest work sits lower. |
 | A11 | The pane is rebuilt from scratch, keeping the old monitor's layout. The old monitor is turned off at install. | Clean repo. | Rewrites working code. |
+
+**D70. The Type field is named Kind.** GitHub reserves the field name Type, so createProjectV2Field fails. The board field is Kind, with the same options (feature, claim, task). This changes the name in D48. On a reused project, the script creates Agent, Kind and Version only if missing and never replaces the options of an existing field. If options are missing it prints one line naming them.
+Why: Kind has the same purpose, and reusing a project must not reset item values.
+Gave up: the name Type.
+Status: default.
+
+**D71. The project lookup prefers a project linked to the repo.** The script first reads the projects linked to the repo. If exactly one is linked, it reuses it. If several are linked, it uses the one whose title matches the repo name when spaces, hyphens and case are ignored. If none or several match, it stops and lists the linked projects. If none is linked, it falls back to the project whose title equals the repo name, then creates one.
+Why: the repo already had the project "Studio 201" linked, and the exact title match created a second board.
+Status: default.
 
 ## Forecast, issue #12
 
@@ -343,7 +358,12 @@ Why: the engine delivers rate limits with each response, not on demand.
 Gave up: an exact match with `/usage` between responses.
 Status: agreed (owner approved on 2026-11-20).
 
-D81 to D89 are held for the C9 work. This group starts at D90.
+## Board link, issue #15
+
+**D81. The pane Board link is a `Link` labelled "Board", and it shows nothing without a board.** The pane reads the URL with the same `readBoardUrl` call as `/board`, on every draw. With no `.studio/config.json` or no board URL, the header slot stays empty. The pane shows no hint and no error. This fills the slot D58 left empty and completes D49.
+Why: `Link` draws an OSC 8 hyperlink on the terminal, and the pane is 20 columns wide, so a dim hint line would crowd the header. `/board` already prints the setup hint.
+Gave up: a hint in the pane for a repo with no board.
+Status: default.
 
 **D90. "Top 5" means the 5 longest-running agents.** The Agents section orders running agents by start time, oldest first, and breaks ties by id. This applies A10.
 Why: a stuck agent rises to the top, and the order does not change while agents run.

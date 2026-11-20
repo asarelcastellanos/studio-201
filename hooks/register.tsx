@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
+import { NO_BOARD, readBoardUrl } from '../src/board'
 import { ASK_REASON, MERGE_REFUSAL, mergesIntoMain } from '../src/merge'
 import type { Lookup } from '../src/merge'
 import { REFUSAL, bashWritesCode, isCodePath, readOnlyRefusal, readOnlyRole } from '../src/policy'
@@ -32,6 +33,7 @@ import { addTurn, sumTokens } from '../src/usage'
 import type { Totals } from '../src/usage'
 
 const NAME = 'studio'
+const BOARD_NAME = 'board'
 const READINGS_KEY = 'readings'
 const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
@@ -355,11 +357,21 @@ async function mergesMain($: EngineInterface, command: string): Promise<boolean>
 	}
 }
 
+const boardUrl = async ($: EngineInterface): Promise<string | undefined> => {
+	const read = async (path: string): Promise<string | undefined> =>
+		(await $.fs.exists(path)) ? await $.fs.read(path) : undefined
+	return readBoardUrl({ read }, await $.session.cwd())
+}
+
 export const register: Register = on => {
 	on('session.start', async ($, e, next) => {
 		await $.command.register({
 			name: NAME,
 			description: 'Studio 201 commands. ' + USAGE,
+		})
+		await $.command.register({
+			name: BOARD_NAME,
+			description: "Print the link to this product's GitHub board.",
 		})
 		await $.tool.register({ name: UPDATE_TOOL, description: UPDATE_TOOL_DESCRIPTION })
 		const started = await next(e)
@@ -383,6 +395,8 @@ export const register: Register = on => {
 				return { text: USAGE }
 		}
 	}).catch(() => ({ text: 'studio: the command failed.' }))
+
+	on('command.run', { command: BOARD_NAME }, async $ => ({ text: (await boardUrl($)) ?? NO_BOARD })).catch(() => ({ text: NO_BOARD }))
 
 	on('turn.complete', async ($, e, next) => {
 		const usage = await $.session.usage()
@@ -416,7 +430,9 @@ export const register: Register = on => {
 		const agents = await $.agent.list()
 		trackFinished(finishedAgents, agents, await $.clock.now())
 		const redraw = () => $.ui.invalidate('ui.render')
-		return renderPane($.ui.resolve(e), {
+		const ui = $.ui.resolve(e)
+		const board = await boardUrl($).catch(() => undefined)
+		return renderPane(ui, {
 			model: await $.session.model(),
 			policyOn: await read($, policyAtom),
 			byModel: totals,
@@ -450,7 +466,7 @@ export const register: Register = on => {
 				breakdown === undefined
 					? usage.context
 					: { tokens: breakdown.totalTokens, window: breakdown.rawMaxTokens, percent: breakdown.percentage },
-		})
+		}, board === undefined ? undefined : <ui.Link href={board}>Board</ui.Link>)
 	}).catch(($, e) => {
 		const { Text } = $.ui.resolve(e)
 		return <Text>studio: pane failed to draw.</Text>
