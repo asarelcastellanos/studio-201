@@ -196,6 +196,12 @@ Why: ponytail is MIT and gives a short rule for the smallest complete change. ac
 Gave up: accessibility rules in our own words until 0.3.
 Status: agreed.
 
+**D47. Setup replaces existing rules, mods and hooks, agents and skills.** After install, Claude always runs on Studio 201, so setup handles whatever was there before. It looks at three groups: rules (`~/.claude/CLAUDE.md` content other than our import line, and a `~/.codex/AGENTS.md` that is not our link), mods and hooks (every entry in `env.CLAUDE_CODE_PLUGIN_DIRS` and the `hooks` key in `settings.json`), and agents and skills (the contents of `~/.claude/agents/`, `skills/` and `commands/`). If it finds none, it installs and asks nothing. If it finds any, it lists them and asks one question with two answers. "Archive it" moves each item to `~/.claude/studio-201/archive/<date-time>/` at the same relative path and writes a `RESTORE.md` that says how to put it back. "Delete it" removes the items for good. Neither answer keeps the old setup active. Dismissing the question changes nothing, and setup asks again next session. Credentials, other settings keys, other plugins, MCP connectors, projects, memory and history are never touched.
+Why: Claude must run on Studio 201 after install, so nothing competing stays active.
+Gave up: Keeping a personal setup active next to Studio 201.
+Replaces the parts of S8 and S9 that kept personal rules and only named two mods.
+Status: agreed.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.

@@ -5,16 +5,32 @@ import { ASK_REASON, MERGE_REFUSAL, mergesIntoMain } from '../src/merge'
 import type { Lookup } from '../src/merge'
 import { REFUSAL, bashWritesCode, isCodePath, readOnlyRefusal, readOnlyRole } from '../src/policy'
 import type { PolicyContext } from '../src/policy'
-import { applyPlan, describeNothing, describePlan, describeResult, pathsFor, planSetup, readSnapshot } from '../src/setup'
-import type { SetupIo } from '../src/setup'
+import {
+	ARCHIVE,
+	DELETE,
+	SetupFailure,
+	applyPlan,
+	archiveStamp,
+	describeFailure,
+	describeNothing,
+	describePlan,
+	describeResult,
+	parentDir,
+	pathsFor,
+	planSetup,
+	readSnapshot,
+	sameSnapshot,
+} from '../src/setup'
+import type { Mode, SetupIo } from '../src/setup'
 
 const NAME = 'studio'
 const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
 const USAGE = 'Usage: /studio policy [on|off] or /studio setup'
 const SETUP_KEY = 'setup'
-const APPLY = 'Apply changes'
-const SKIP = 'Not now'
+const LOCK_KEY = 'setup-lock'
+const LOCK_TTL_MS = 15 * 60 * 1000
+const ASK_ROUNDS = 3
 
 async function policyCommand($: EngineInterface, args: string): Promise<string> {
 	const arg = args.trim().toLowerCase()
@@ -24,52 +40,130 @@ async function policyCommand($: EngineInterface, args: string): Promise<string> 
 }
 
 function setupIo($: EngineInterface): SetupIo {
+	const run = async (argv: readonly string[]): Promise<void> => {
+		const result = await $.process.run(argv)
+		if (result.exitCode !== 0) throw new Error(`${argv[0]} failed: ${result.stderr.trim() || `exit ${result.exitCode}`}`)
+	}
+	const exists = (path: string): Promise<boolean> => $.fs.exists(path)
 	return {
-		read: async path => ((await $.fs.exists(path)) ? await $.fs.read(path) : undefined),
+		read: async path => ((await exists(path)) ? await $.fs.read(path) : undefined),
 		write: (path, text) => $.fs.write(path, text),
-		exists: path => $.fs.exists(path),
-		list: async dir => ((await $.fs.exists(dir)) ? await $.fs.list(dir) : undefined),
+		exists,
+		list: async dir => ((await exists(dir)) ? (await $.fs.list(dir)).map(entry => entry.name) : undefined),
+		isLink: async path => ((await $.fs.stat(path).catch(() => undefined))?.isLink ?? false),
 		readlink: async path => {
 			const result = await $.process.run(['readlink', path])
 			return result.exitCode === 0 ? result.stdout.trim() : undefined
 		},
-		link: async (path, target) => {
-			const result = await $.process.run(['ln', '-s', target, path])
-			if (result.exitCode !== 0) throw new Error(`ln -s failed for ${path}: ${result.stderr.trim()}`)
+		link: (path, target) => run(['ln', '-s', target, path]),
+		move: async (from, to) => {
+			await run(['mkdir', '-p', parentDir(to)])
+			await run(['mv', from, to])
+		},
+		remove: path => run(['rm', '-rf', path]),
+		writeAtomic: async (path, text) => {
+			const stat = await $.fs.stat(path, { resolve: true }).catch(() => undefined)
+			const target = stat?.isLink === true && stat.realPath !== undefined ? stat.realPath : path
+			const temp = `${target}.studio-201-tmp`
+			await $.fs.write(temp, text)
+			try {
+				if (stat !== undefined) {
+					const mode = await $.process.run(['stat', '-f', '%Lp', target])
+					if (mode.exitCode === 0) await run(['chmod', mode.stdout.trim(), temp])
+				}
+				await run(['mv', '-f', temp, target])
+			} catch (error) {
+				await $.process.run(['rm', '-f', temp]).catch(() => undefined)
+				throw error
+			}
 		},
 	}
 }
 
-async function recordSetup($: EngineInterface, status: 'done' | 'declined'): Promise<void> {
-	await $.store.set(SETUP_KEY, { status, at: new Date(await $.clock.now()).toISOString() })
+type Lock = { id: string; at: number }
+
+function isLock(value: unknown): value is Lock {
+	return typeof value === 'object' && value !== null && 'id' in value && 'at' in value
 }
 
-async function runSetup($: EngineInterface): Promise<string> {
+async function takeLock($: EngineInterface): Promise<string | undefined> {
+	const now = await $.clock.now()
+	const held = await $.store.get(LOCK_KEY)
+	if (isLock(held) && now - held.at < LOCK_TTL_MS) return undefined
+	const id = `${now}-${Math.random().toString(36).slice(2)}`
+	await $.store.set(LOCK_KEY, { id, at: now })
+	const check = await $.store.get(LOCK_KEY)
+	return isLock(check) && check.id === id ? id : undefined
+}
+
+async function dropLock($: EngineInterface, id: string): Promise<void> {
+	const held = await $.store.get(LOCK_KEY)
+	if (isLock(held) && held.id === id) await $.store.delete(LOCK_KEY)
+}
+
+type Outcome = { text: string; show: boolean }
+
+async function installSetup($: EngineInterface): Promise<Outcome> {
 	const home = (await $.env.get('HOME')) ?? ''
 	if (home === '') throw new Error('HOME is not set')
 	const paths = pathsFor(home, await $.env.get('CLAUDE_CONFIG_DIR'))
 	const io = setupIo($)
-	const plan = planSetup(await readSnapshot(io, paths, `${$.plugin.root}/AGENTS.md`), paths)
-	if (plan.steps.length === 0) {
-		await recordSetup($, 'done')
-		return describeNothing(plan)
+	const sourcePath = `${$.plugin.root}/AGENTS.md`
+	let snapshot = await readSnapshot(io, paths, sourcePath)
+	for (let round = 0; round < ASK_ROUNDS; round++) {
+		const plan = planSetup(snapshot, paths)
+		if (plan.blocked !== undefined) return { text: plan.blocked, show: true }
+		if (plan.items.length === 0 && plan.steps.length === 0) {
+			await recordDone($)
+			return { text: describeNothing(plan), show: false }
+		}
+		let mode: Mode = 'archive'
+		if (plan.items.length > 0) {
+			const answer = await $.ui
+				.ask(describePlan(plan, paths), { options: [ARCHIVE, DELETE], header: 'Old setup' })
+				.catch(() => undefined)
+			if (answer !== ARCHIVE && answer !== DELETE) {
+				return { text: 'Setup was not applied and nothing changed. It asks again next session, or run /studio setup.', show: true }
+			}
+			mode = answer === ARCHIVE ? 'archive' : 'delete'
+			const fresh = await readSnapshot(io, paths, sourcePath)
+			if (!sameSnapshot(snapshot, fresh)) {
+				snapshot = fresh
+				continue
+			}
+		}
+		const applied = await applyPlan(io, paths, plan, mode, archiveStamp(await $.clock.now()))
+		await recordDone($)
+		return { text: describeResult(plan, mode, applied), show: true }
 	}
-	const answer = await $.ui.ask(describePlan(plan), { options: [APPLY, SKIP], header: 'Setup' }).catch(() => SKIP)
-	if (answer !== APPLY) {
-		await recordSetup($, 'declined')
-		return 'Setup skipped and nothing changed. Run /studio setup to do it later.'
+	return { text: 'The files kept changing while setup waited for an answer, so nothing was changed. Run /studio setup again.', show: true }
+}
+
+async function recordDone($: EngineInterface): Promise<void> {
+	await $.store.set(SETUP_KEY, { status: 'done', at: new Date(await $.clock.now()).toISOString() })
+}
+
+async function runSetup($: EngineInterface): Promise<Outcome> {
+	const lock = await takeLock($)
+	if (lock === undefined) return { text: 'Setup is already running in another session.', show: false }
+	try {
+		return await installSetup($)
+	} catch (error) {
+		const text = error instanceof SetupFailure ? describeFailure(error) : `Setup failed: ${error instanceof Error ? error.message : String(error)}`
+		return { text, show: true }
+	} finally {
+		await dropLock($, lock)
 	}
-	const backups = await applyPlan(io, plan)
-	await recordSetup($, 'done')
-	return describeResult(plan, backups)
 }
 
 async function setupCommand($: EngineInterface): Promise<string> {
-	try {
-		return await runSetup($)
-	} catch (error) {
-		return `Setup failed: ${error instanceof Error ? error.message : String(error)}`
-	}
+	return (await runSetup($)).text
+}
+
+function startSetup($: EngineInterface): void {
+	void runSetup($)
+		.then(outcome => (outcome.show ? $.ui.log(outcome.text) : undefined))
+		.catch(() => undefined)
 }
 
 type Restriction = { strict: boolean; refusal: string }
@@ -188,9 +282,7 @@ export const register: Register = on => {
 			description: 'Studio 201 commands. ' + USAGE,
 		})
 		const started = await next(e)
-		if (e.isInteractive && (await $.store.get(SETUP_KEY)) === undefined) {
-			$.ui.log(await setupCommand($))
-		}
+		if (e.isInteractive && (await $.store.get(SETUP_KEY)) === undefined) startSetup($)
 		return started
 	})
 
