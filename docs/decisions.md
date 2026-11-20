@@ -215,7 +215,7 @@ Gave up: the strict main-only rule until v0.1 reaches main.
 Status: default.
 
 **D51. `/studio update` prints a reload hint instead of trying `/reload-plugins`.** Replaces the reload attempt in D27.
-Why: a mod cannot run a built-in slash command, so the attempt always failed and the hint was the only path that worked.
+Why: a mod cannot reload itself in the middle of its own command. The F1 review removed the attempt (PR #56).
 Status: default.
 
 **D52. The update tool asks before it runs, refreshes the rules copy without a version bump, and holds a lock.** The `studio_update` tool asks the owner first. It refreshes `~/.claude/studio-201/AGENTS.md` even when the plugin version did not change. A lock across sessions stops two updates from running at once.
