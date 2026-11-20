@@ -1,6 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
+import { NO_BOARD, readBoardUrl } from '../src/board'
 import { ASK_REASON, MERGE_REFUSAL, mergesIntoMain } from '../src/merge'
 import type { Lookup } from '../src/merge'
 import { REFUSAL, bashWritesCode, isCodePath, readOnlyRefusal, readOnlyRole } from '../src/policy'
@@ -26,6 +27,7 @@ import { runUpdate } from '../src/update'
 import type { UpdateIo } from '../src/update'
 
 const NAME = 'studio'
+const BOARD_NAME = 'board'
 const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
 const USAGE = 'Usage: /studio policy [on|off], /studio setup or /studio update'
@@ -328,6 +330,10 @@ export const register: Register = on => {
 			name: NAME,
 			description: 'Studio 201 commands. ' + USAGE,
 		})
+		await $.command.register({
+			name: BOARD_NAME,
+			description: "Print the link to this product's GitHub board.",
+		})
 		await $.tool.register({ name: UPDATE_TOOL, description: UPDATE_TOOL_DESCRIPTION })
 		const started = await next(e)
 		if (e.isInteractive && (await $.store.get(SETUP_KEY)) === undefined) startSetup($)
@@ -347,6 +353,12 @@ export const register: Register = on => {
 				return { text: USAGE }
 		}
 	}).catch(() => ({ text: 'studio: the command failed.' }))
+
+	on('command.run', { command: BOARD_NAME }, async $ => {
+		const read = async (path: string): Promise<string | undefined> =>
+			(await $.fs.exists(path)) ? await $.fs.read(path) : undefined
+		return { text: (await readBoardUrl({ read }, await $.session.cwd())) ?? NO_BOARD }
+	}).catch(() => ({ text: NO_BOARD }))
 
 	on('tool.run', { tool: UPDATE_TOOL_ID }, async $ => {
 		const { ok, text } = await updateStudio($)
