@@ -14,6 +14,14 @@ export const addImportLine = (content: string) => {
 
 export const workbenchToDisable = (installed: Installed[]) => installed.filter(entry => entry.enabled && WORKBENCH.has(pluginName(entry.id) ?? ''))
 
+const isFromPluginDirs = ({ id, scope }: Installed) => scope === 'session' || id.endsWith('@inline')
+
+export const pluginDirsNote = (targets: Installed[]) => {
+  const names = targets.filter(isFromPluginDirs).map(({ id }) => pluginName(id))
+  if (names.length === 0) return undefined
+  return `${names.join(' and ')} ${names.length === 1 ? 'loads' : 'load'} from CLAUDE_CODE_PLUGIN_DIRS in ~/.claude/settings.json. Remove ${names.length === 1 ? 'that path' : 'those paths'} there to turn ${names.length === 1 ? 'it' : 'them'} off for good.`
+}
+
 function claude($: Engine, args: string[]) {
   return $.process.run(['claude', ...args], { timeoutMs: 60_000 })
 }
@@ -64,11 +72,13 @@ async function disableWorkbench($: Engine) {
   const targets = workbenchToDisable(parseInstalled(listed.stdout))
   if (targets.length === 0) return ['No claude-workbench monitor or model-policy plugin is enabled.']
   const lines: string[] = []
-  for (const { id, scope } of targets) {
-    const ran = await claude($, ['plugin', 'disable', id, ...(scope === 'session' ? [] : ['--scope', scope])])
+  for (const target of targets) {
+    const { id, scope } = target
+    const ran = await claude($, ['plugin', 'disable', id, ...(isFromPluginDirs(target) ? [] : ['--scope', scope])])
     lines.push(ran.exitCode === 0 ? `Disabled ${id}.` : `Could not disable ${id}: ${ran.stderr.trim()}`)
   }
-  return lines
+  const note = pluginDirsNote(targets)
+  return note === undefined ? lines : [...lines, note]
 }
 
 export async function runSetup($: Engine) {
