@@ -60,7 +60,19 @@ Setup does four things:
 
 Setup backs up each file it edits as `<file>.studio-201.bak` before the edit. It keeps the first backup if one exists. If `CLAUDE_CONFIG_DIR` is set, setup uses that folder instead of `~/.claude`. Restart Claude Code after setup so it loads the rules.
 
-`/studio update` pulls the latest version on any Mac. It arrives later in 0.1.
+## Update
+
+Type `/studio update`, or ask Claude to update Studio 201. Claude calls the `studio_update` tool, which runs the same steps:
+
+1. It reads the installed version.
+2. If the Studio 201 marketplace is a local clone, it runs `git pull --ff-only` in that clone and reports the branch and the result. If the pull fails, because the clone has local commits that diverge from upstream or changes that conflict, the update stops before it changes anything and says why. Fix the clone and run it again.
+3. It runs `claude plugin marketplace update studio-201` and `claude plugin update studio-201@studio-201`.
+4. If setup has run, it refreshes `~/.claude/studio-201/AGENTS.md` from the updated plugin. It touches no other personal file.
+5. It reports `Updated vOLD to vNEW. Run /reload-plugins to apply.`, or `Studio 201 is up to date (vX).` when nothing changed.
+
+Each command and its output go to the session log. An error stops the update and is shown as it happened. A clone installed from a local path is the case in step 2. A marketplace added from GitHub has no clone to pull, so the update skips step 2 and the marketplace update fetches the latest version.
+
+After the update, Studio 201 asks Claude Code to reload plugins. If the reload does not happen, run `/reload-plugins` to load the new version. Without a reload, the new version loads at the next session start.
 
 ## Docs
 

@@ -6,15 +6,23 @@ import type { Lookup } from '../src/merge'
 import { REFUSAL, bashWritesCode, isCodePath, readOnlyRefusal, readOnlyRole } from '../src/policy'
 import type { PolicyContext } from '../src/policy'
 import { applyPlan, describeNothing, describePlan, describeResult, pathsFor, planSetup, readSnapshot } from '../src/setup'
-import type { SetupIo } from '../src/setup'
+import type { Paths, SetupIo } from '../src/setup'
+import { runUpdate } from '../src/update'
+import type { UpdateIo } from '../src/update'
 
 const NAME = 'studio'
 const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
-const USAGE = 'Usage: /studio policy [on|off] or /studio setup'
+const USAGE = 'Usage: /studio policy [on|off], /studio setup or /studio update'
+const UPDATE_TOOL = 'studio_update'
+const UPDATE_TOOL_ID = 'mcp__studio-201__studio_update'
+const UPDATE_TOOL_DESCRIPTION =
+	'Updates the Studio 201 plugin to the latest version and reports the old and new version. Call it only when the user asks to update, upgrade or get the latest Studio 201. It pulls the local clone of the plugin if there is one, updates the marketplace and the plugin, and refreshes the AGENTS.md copy if setup has run. It takes no input. Give the user its result as it is.'
 const SETUP_KEY = 'setup'
 const APPLY = 'Apply changes'
 const SKIP = 'Not now'
+const UPDATE_STEP_TIMEOUT_MS = 120000
+const RELOAD_DELAY_MS = 1500
 
 async function policyCommand($: EngineInterface, args: string): Promise<string> {
 	const arg = args.trim().toLowerCase()
@@ -44,10 +52,14 @@ async function recordSetup($: EngineInterface, status: 'done' | 'declined'): Pro
 	await $.store.set(SETUP_KEY, { status, at: new Date(await $.clock.now()).toISOString() })
 }
 
-async function runSetup($: EngineInterface): Promise<string> {
+async function resolvePaths($: EngineInterface): Promise<Paths> {
 	const home = (await $.env.get('HOME')) ?? ''
 	if (home === '') throw new Error('HOME is not set')
-	const paths = pathsFor(home, await $.env.get('CLAUDE_CONFIG_DIR'))
+	return pathsFor(home, await $.env.get('CLAUDE_CONFIG_DIR'))
+}
+
+async function runSetup($: EngineInterface): Promise<string> {
+	const paths = await resolvePaths($)
 	const io = setupIo($)
 	const plan = planSetup(await readSnapshot(io, paths, `${$.plugin.root}/AGENTS.md`), paths)
 	if (plan.steps.length === 0) {
@@ -69,6 +81,42 @@ async function setupCommand($: EngineInterface): Promise<string> {
 		return await runSetup($)
 	} catch (error) {
 		return `Setup failed: ${error instanceof Error ? error.message : String(error)}`
+	}
+}
+
+function updateIo($: EngineInterface): UpdateIo {
+	return {
+		run: argv => $.process.run(argv, { timeoutMs: UPDATE_STEP_TIMEOUT_MS }),
+		files: setupIo($),
+		setupDone: async () => {
+			const record = await $.store.get(SETUP_KEY)
+			return typeof record === 'object' && record !== null && 'status' in record && record.status === 'done'
+		},
+		requestReload: () => {
+			$.clock.after(RELOAD_DELAY_MS, async () => {
+				try {
+					const result = await $.command.run({ command: 'reload-plugins' })
+					$.ui.log(result.text ?? 'Reloaded plugins.')
+				} catch (error) {
+					$.ui.log(`Could not reload plugins: ${error instanceof Error ? error.message : String(error)}`)
+				}
+			})
+		},
+		log: text => $.ui.log(text),
+	}
+}
+
+let updating = false
+
+async function updateStudio($: EngineInterface): Promise<{ ok: boolean; text: string }> {
+	if (updating) return { ok: false, text: 'An update is already running.' }
+	updating = true
+	try {
+		return { ok: true, text: await runUpdate(updateIo($), await resolvePaths($)) }
+	} catch (error) {
+		return { ok: false, text: `Update failed: ${error instanceof Error ? error.message : String(error)}` }
+	} finally {
+		updating = false
 	}
 }
 
@@ -187,6 +235,7 @@ export const register: Register = on => {
 			name: NAME,
 			description: 'Studio 201 commands. ' + USAGE,
 		})
+		await $.tool.register({ name: UPDATE_TOOL, description: UPDATE_TOOL_DESCRIPTION })
 		const started = await next(e)
 		if (e.isInteractive && (await $.store.get(SETUP_KEY)) === undefined) {
 			$.ui.log(await setupCommand($))
@@ -201,10 +250,17 @@ export const register: Register = on => {
 				return { text: await policyCommand($, rest.join(' ')) }
 			case 'setup':
 				return { text: await setupCommand($) }
+			case 'update':
+				return { text: (await updateStudio($)).text }
 			default:
 				return { text: USAGE }
 		}
 	}).catch(() => ({ text: 'studio: the command failed.' }))
+
+	on('tool.run', { tool: UPDATE_TOOL_ID }, async $ => {
+		const { ok, text } = await updateStudio($)
+		return ok ? { result: text } : { deny: text }
+	}).catch(() => ({ deny: 'studio_update failed.' }))
 
 	on('tool.call', { tool: ['Edit', 'Write', 'NotebookEdit'] }, async ($, e, next) => {
 		const rule = await restriction($, e.agentId)

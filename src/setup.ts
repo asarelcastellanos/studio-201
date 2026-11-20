@@ -76,13 +76,13 @@ function workbenchModName(entry: string): string | undefined {
 	return parts.at(-2) === 'mods' && WORKBENCH_MODS.has(name) ? name : undefined
 }
 
-function planAgentsCopy(snapshot: Snapshot, paths: Paths): Step | undefined {
-	if (snapshot.copy === snapshot.source) return undefined
-	const verb = snapshot.copy === undefined ? 'Copy' : 'Refresh'
+export function planAgentsCopy(source: string, copy: string | undefined, paths: Paths): Step | undefined {
+	if (copy === source) return undefined
+	const verb = copy === undefined ? 'Copy' : 'Refresh'
 	return {
 		kind: 'write',
 		path: paths.agentsCopy,
-		text: snapshot.source,
+		text: source,
 		backup: undefined,
 		lines: [`${verb} AGENTS.md to ${paths.agentsCopy}`],
 	}
@@ -145,7 +145,7 @@ function planSettings(raw: string | undefined, paths: Paths): { step?: Step; not
 export function planSetup(snapshot: Snapshot, paths: Paths): Plan {
 	const steps: Step[] = []
 	const notes: string[] = []
-	const copy = planAgentsCopy(snapshot, paths)
+	const copy = planAgentsCopy(snapshot.source, snapshot.copy, paths)
 	if (copy !== undefined) steps.push(copy)
 	const claudeMd = planClaudeMd(snapshot.claudeMd, paths)
 	if (claudeMd !== undefined) steps.push(claudeMd)
