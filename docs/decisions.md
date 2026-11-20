@@ -397,3 +397,8 @@ Status: agreed.
 Why: 32 fits "resets Mon 11/23 2:00 PM PT" (27) with room to spare. 48 fits "7d ████████ 42% · resets Mon 11/23 2:00 PM PT" (45). A one-line agent row such as "Scout · Sleep then list /usr/bin · Haiku 5.5 · since 2:08 PM · 22.6k" takes 68 columns, so below about 60 most agent rows use the medium layout.
 Gave up: a fixed one-line agent row at 48 columns, which would cut most tasks to a few characters.
 Status: default.
+
+**D97. The Board header is a Button that opens the URL.** The engine's `Link` prints its text and then the URL in dim on terminals without OSC 8, and `LinkProps` cannot turn that off. That widened the pane to the length of the URL. The header now shows a plain `Button` labelled "Board". Pressing it runs `$.process.run(['open', url])` when `$.session.info()` reports `macos`, and `xdg-open` on any other platform. If the command fails or exits with a code other than 0, the pane shows a toast "Board: <url>". `/board` still prints the URL. This replaces the Link part of D81 and D96.
+Why: a Button is one short line on every terminal, and the URL stays reachable from the toast and `/board`.
+Gave up: a clickable link on terminals that support OSC 8, and `start` on Windows.
+Status: default.

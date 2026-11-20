@@ -50,7 +50,8 @@ const FINISHED_SHOWN = 5
 type Layout = { tier: 'narrow' | 'medium' | 'wide'; width: number }
 
 function layoutFor(columns: number | undefined): Layout {
-	if (columns === undefined || columns < BREAKPOINTS.medium) return { tier: 'narrow', width: PANE_WIDTH }
+	if (columns === undefined) return { tier: 'narrow', width: PANE_WIDTH }
+	if (columns < BREAKPOINTS.medium) return { tier: 'narrow', width: Math.max(PANE_WIDTH, columns) }
 	return { tier: columns < BREAKPOINTS.wide ? 'medium' : 'wide', width: columns }
 }
 
@@ -131,7 +132,7 @@ function runningLines(ui: Ui, view: AgentsView, row: AgentRow, layout: Layout): 
 	const key = `run-${row.id}`
 	const mark = view.viewing === row.id ? '●' : '▸'
 	const model = modelName(row.model, layout.width)
-	const tail = [model, `since ${formatClock(row.startTime)}`, formatTokens(row.tokens)].join(SEPARATOR)
+	const tail = [model, `since ${formatClock(row.startTime)}`, `${formatTokens(row.tokens)} tok`].join(SEPARATOR)
 	const single = layout.tier === 'wide' ? rowLine(`${mark} `, row.role, row.task, tail, layout.width) : undefined
 	if (single !== undefined) {
 		return [
@@ -147,7 +148,7 @@ function runningLines(ui: Ui, view: AgentsView, row: AgentRow, layout: Layout): 
 	)
 	const task = <Text key={`${key}-task`}>{`  ${fit(row.task, layout.width - INDENT)}`}</Text>
 	if (layout.tier !== 'narrow') {
-		const packed = pack([model, `since ${formatClock(row.startTime)}`, formatTokens(row.tokens)], layout.width - INDENT)
+		const packed = pack([model, `since ${formatClock(row.startTime)}`, `${formatTokens(row.tokens)} tokens`], layout.width - INDENT)
 		return [head, task, ...packed.map((line, index) => <Text key={`${key}-tail-${index}`}>{`  ${line}`}</Text>), <Text key={`${key}-gap`}> </Text>]
 	}
 	return [
@@ -165,20 +166,21 @@ function finishedLines(ui: Ui, row: FinishedRow, layout: Layout): JSX.Element[] 
 	const key = `done-${row.id}`
 	const model = modelName(row.model, layout.width)
 	const ran = `ran ${formatDuration(row.endTime - row.startTime)}`
-	const tail = [model, ran, formatTokens(row.tokens)].join(SEPARATOR)
+	const tail = [model, ran, `${formatTokens(row.tokens)} tok`].join(SEPARATOR)
 	const single = layout.tier === 'wide' ? rowLine('✓ ', row.role, row.task, tail, layout.width) : undefined
 	if (single !== undefined) return [<Text key={key}>{single}</Text>]
 	const head = <Text key={key}>{`✓ ${fit(row.role, layout.width - INDENT)}`}</Text>
 	const task = <Text key={`${key}-task`}>{`  ${fit(row.task, layout.width - INDENT)}`}</Text>
 	if (layout.tier !== 'narrow') {
-		const packed = pack([model, ran, formatTokens(row.tokens)], layout.width - INDENT)
+		const packed = pack([model, ran, `${formatTokens(row.tokens)} tokens`], layout.width - INDENT)
 		return [head, task, ...packed.map((line, index) => <Text key={`${key}-tail-${index}`}>{`  ${line}`}</Text>), <Text key={`${key}-gap`}> </Text>]
 	}
 	return [
 		head,
 		task,
 		<Text key={`${key}-model`}>{`  ${model}`}</Text>,
-		<Text key={`${key}-ran`}>{`  ${ran} · ${formatTokens(row.tokens)}`}</Text>,
+		<Text key={`${key}-ran`}>{`  ${ran}`}</Text>,
+		<Text key={`${key}-tokens`}>{`  ${formatTokens(row.tokens)} tokens`}</Text>,
 		<Text key={`${key}-gap`}> </Text>,
 	]
 }

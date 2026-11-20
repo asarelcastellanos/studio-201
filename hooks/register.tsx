@@ -363,6 +363,13 @@ const boardUrl = async ($: EngineInterface): Promise<string | undefined> => {
 	return readBoardUrl({ read }, await $.session.cwd())
 }
 
+const openBoard = async ($: EngineInterface, url: string): Promise<void> => {
+	const { platform } = await $.session.info()
+	const opener = platform === 'macos' ? 'open' : 'xdg-open'
+	const opened = await $.process.run([opener, url]).catch(() => undefined)
+	if (opened === undefined || opened.exitCode !== 0) $.ui.toast(`Board: ${url}`)
+}
+
 export const register: Register = on => {
 	on('session.start', async ($, e, next) => {
 		await $.command.register({
@@ -467,7 +474,12 @@ export const register: Register = on => {
 				breakdown === undefined
 					? usage.context
 					: { tokens: breakdown.totalTokens, window: breakdown.rawMaxTokens, percent: breakdown.percentage },
-		}, board === undefined ? undefined : <ui.Link href={board}>Board</ui.Link>)
+		}, board === undefined ? undefined : (
+				<ui.Button key="board" plain onPress={() => void openBoard($, board)}>
+					Board
+				</ui.Button>
+			),
+		)
 	}).catch(($, e) => {
 		const { Text } = $.ui.resolve(e)
 		return <Text>studio: pane failed to draw.</Text>
