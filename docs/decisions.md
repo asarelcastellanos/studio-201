@@ -276,3 +276,39 @@ Status: default.
 **D63. The Pacific time format is "Sat Nov 21, 12:10 AM PST", with the zone abbreviation.** The formatter uses `Intl.DateTimeFormat` with `America/Los_Angeles`.
 Why: A5 asks for day, date and time. The abbreviation tells PST from PDT on 1 November, when 1:10 AM happens twice.
 Status: default.
+
+## Pane frame, issue #10
+
+**D56. Tokens used sums all four counts, cache reads included.** Input, output, cache read and cache creation tokens from each turn's usage all add up.
+Why: it matches the total the engine reports per turn, and it shows how much the session moved, not only what it billed at full rate.
+Gave up: a smaller number that leaves out cache reads.
+Status: default.
+
+**D57. Tokens by model reset when the mod reloads.** The engine has no whole-session tokens-by-model call, so the mod adds up `turn.complete` usage in memory, subagent turns included. A reload or a resumed session starts the totals at zero.
+Why: C4 does not ask for history, and storing totals would need a session id the mod does not have.
+Gave up: totals that survive a reload.
+Status: default.
+
+**D58. The Board slot draws nothing until C9 fills it.** The pane header has a slot for the Board link and passes nothing to it yet.
+Why: D49 puts the Board link in the header, and C9 owns the link.
+Status: default.
+
+**D59. The policy block shows on or off and tokens by model, without the design's role lines.** The design lists which model plays main and agents. The pane leaves those lines out, and the engine draws the close control, so the design's "×" is dropped too.
+Why: C4 asks for whether the policy is on and tokens by model. No call tells the mod each role's model.
+Gave up: the role lines in the Policy block.
+Status: default.
+
+**D72. The pane shows the session start time, not elapsed time.** The line reads "since 10:02 AM" in Pacific time. The elapsed value is gone.
+Why: the engine has no timer, and the pane redraws only on `turn.complete`, so an elapsed value goes stale between turns. A start time never does. The pane also redraws on every `turn.complete`, including turns with no usage.
+Gave up: a running elapsed value, or one labelled with its last update.
+Status: default.
+
+**D73. Token totals reset when `startedAt` changes, and the lines say "since load".** The mod compares `usage.startedAt` with the last value it saw and clears the totals on a change, which a `/clear` causes. After a resume or reload the totals still start at zero, so the label says they count from when the pane loaded. This refines D57.
+Why: the engine has no whole-session tokens-by-model call, and cost and start time count from the session start.
+Gave up: totals that match cost after a resume.
+Status: default.
+
+**D74. The context figure comes from the /context breakdown.** The pane asks `$.session.usage({ breakdown: 'summary' })` and shows `totalTokens`, `rawMaxTokens` and `percentage`, so the percent matches /context. It falls back to the status-line figures when the breakdown is absent. The `summary` detail estimates locally and sends no token-count requests.
+Why: QA compares the pane with /context, which measures against the compaction window.
+Gave up: the exact token counts of the `full` detail.
+Status: default.
