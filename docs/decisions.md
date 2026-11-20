@@ -196,6 +196,11 @@ Why: ponytail is MIT and gives a short rule for the smallest complete change. ac
 Gave up: accessibility rules in our own words until 0.3.
 Status: agreed.
 
+**D46. Install from the local clone right after F1.** Once F5 and F1 are in release/v0.1, I install Studio 201 from my local clone (`claude plugin marketplace add ~/Documents/studio-201`, then `/plugin install studio-201`) after cleaning up ~/.claude myself. F3, F2 and F4 are then built with Studio 201 instead of the workbench. Replaces K10 in plan/v0.1.md.
+Why: tests the real install earlier, with Studio 201 guarding its own build.
+Gave up: until release/v0.1 reaches main, `/studio update` has nothing new to pull, so I update with `git pull` in the clone.
+Status: agreed.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
