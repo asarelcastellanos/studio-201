@@ -364,3 +364,11 @@ Status: default.
 Why: the engine supports the view and the way back, and a Button cannot hold several lines.
 Gave up: a click target over the whole agent entry.
 Status: default.
+
+**D94. The mod keeps the newest 50 finished agents.** When the mod adds a finished agent, it drops the oldest entries by end time until 50 remain. "N finished" counts the agents kept. Opening it shows the newest 5, and "Show N more ›" and "Show fewer ‹" expand and collapse the rest, as in the running list. This changes D92, which showed every finished agent.
+Why: the list is module-level memory and grew without bound.
+Gave up: showing every finished agent in a session, and the design page's "Show 9 more" wording.
+Status: default.
+
+**D95. D91 agreed.** The owner approved the start time for running agents on 2026-11-20, so C10's run time is met by the start time.
+Status: agreed.

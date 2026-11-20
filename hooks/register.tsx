@@ -41,7 +41,7 @@ const PANE_TITLE = 'Studio 201'
 const totals: Totals = new Map()
 let lastStartedAt: number | undefined
 const finishedAgents = new Map<string, FinishedRow>()
-const agentsOpen = { running: false, finished: false }
+const agentsOpen = { running: false, finished: false, finishedAll: false }
 const UPDATE_TOOL = 'studio_update'
 const UPDATE_TOOL_ID = 'mcp__studio-201__studio_update'
 const UPDATE_ASK_REASON = 'studio-201: this pulls the clone and reinstalls Studio 201. Approve or decline.'
@@ -241,6 +241,7 @@ async function agentEvent($: EngineInterface, stoppedId?: string): Promise<void>
 async function openPane($: EngineInterface): Promise<string> {
 	agentsOpen.running = false
 	agentsOpen.finished = false
+	agentsOpen.finishedAll = false
 	const opened = await $.ui.open({ id: PANE_ID, title: PANE_TITLE, backgroundColor: 'transparent' })
 	return opened.isPlaced ? 'Studio 201 pane open.' : `The pane could not open: ${opened.reason}`
 }
@@ -428,6 +429,7 @@ export const register: Register = on => {
 				viewing: e.props.view.agentId,
 				showAllRunning: agentsOpen.running,
 				finishedOpen: agentsOpen.finished,
+				showAllFinished: agentsOpen.finishedAll,
 				view: id => void $.ui.view({ agentId: id }).then(shown => shown.deny && $.ui.toast(shown.deny)),
 				back: () => void $.ui.view({}),
 				toggleRunning: () => {
@@ -436,6 +438,10 @@ export const register: Register = on => {
 				},
 				toggleFinished: () => {
 					agentsOpen.finished = !agentsOpen.finished
+					redraw()
+				},
+				toggleFinishedMore: () => {
+					agentsOpen.finishedAll = !agentsOpen.finishedAll
 					redraw()
 				},
 			},

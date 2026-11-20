@@ -11,6 +11,8 @@ export type AgentRow = {
 	tokens: number
 }
 
+export const FINISHED_KEPT = 50
+
 export type FinishedRow = AgentRow & { endTime: number }
 
 const DONE: ReadonlySet<AgentInfo['status']> = new Set(['completed', 'failed', 'killed'])
@@ -27,7 +29,8 @@ export function agentRow(info: AgentInfo): AgentRow {
 		task: info.description,
 		model: info.model,
 		startTime: info.startTime,
-		tokens: (info.usage ?? []).reduce((sum, usage) => sum + turnTokens(usage), 0),
+		tokens:
+			info.usage === undefined ? info.tokenCount : info.usage.reduce((sum, usage) => sum + turnTokens(usage), 0),
 	}
 }
 
@@ -49,6 +52,11 @@ export function trackFinished(
 		if ((isFinished(info) || info.id === stoppedId) && !finished.has(info.id)) {
 			finished.set(info.id, { ...agentRow(info), endTime: now })
 		}
+	}
+	const surplus = finished.size - FINISHED_KEPT
+	if (surplus > 0) {
+		const oldest = [...finished.values()].sort((a, b) => a.endTime - b.endTime).slice(0, surplus)
+		for (const row of oldest) finished.delete(row.id)
 	}
 }
 

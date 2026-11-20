@@ -23,10 +23,12 @@ export type AgentsView = {
 	viewing: string | undefined
 	showAllRunning: boolean
 	finishedOpen: boolean
+	showAllFinished: boolean
 	view: (id: string) => void
 	back: () => void
 	toggleRunning: () => void
 	toggleFinished: () => void
+	toggleFinishedMore: () => void
 }
 
 type Ui = Pick<Elements['terminal'], 'Box' | 'Text' | 'Button'>
@@ -37,6 +39,7 @@ const NAME_WIDTH = 11
 const PANE_WIDTH = 20
 const INDENT = 2
 const RUNNING_SHOWN = 5
+const FINISHED_SHOWN = 5
 
 function heading(label: string): string {
 	return `── ${label} ${'─'.repeat(Math.max(2, 16 - label.length))}`
@@ -134,7 +137,16 @@ function agentsSection(ui: Ui, view: AgentsView): JSX.Element[] {
 		)
 		if (view.finishedOpen) {
 			lines.push(<Text key="agents-finished-gap"> </Text>)
-			for (const row of view.finished) lines.push(...finishedLines(ui, row))
+			const doneShown = view.showAllFinished ? view.finished : view.finished.slice(0, FINISHED_SHOWN)
+			const doneHidden = view.finished.length - doneShown.length
+			for (const row of doneShown) lines.push(...finishedLines(ui, row))
+			if (doneHidden > 0 || view.showAllFinished) {
+				lines.push(
+					<Button key="agents-finished-more" plain onPress={view.toggleFinishedMore}>
+						{view.showAllFinished ? 'Show fewer ‹' : `Show ${doneHidden} more ›`}
+					</Button>,
+				)
+			}
 		}
 	}
 	return lines
