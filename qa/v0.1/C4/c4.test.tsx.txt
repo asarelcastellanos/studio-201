@@ -1,0 +1,39 @@
+import { test, expect, mock } from 'claude-code/testing'
+
+function lines(node: any): string[] {
+	if (node === null || node === undefined || typeof node === 'boolean') return []
+	if (typeof node === 'string') return [node]
+	const kids = [...(node.children ?? [])].flatMap(lines)
+	if (node.type === 'Text') return [kids.join('')]
+	return kids
+}
+
+const STARTED = Date.parse('2026-11-20T18:02:00Z')
+
+async function turn($: any, id: string, model: string, i: number, o: number, cr: number, cc: number, agentId?: string) {
+	await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: id, reason: 'complete', ...(agentId ? { agentId } : {}), usage: { model, input_tokens: i, output_tokens: o, cache_read_input_tokens: cr, cache_creation_input_tokens: cc } } as any)
+}
+
+async function draw($: any, label: string) {
+	const ui = await $.ui.mount({ plugin: 'studio-201', surface: 'terminal', component: 'Pane', requestId: 'studio-201', props: { title: 'Studio 201', isFocused: false, bodyColumns: 24 } as any })
+	const tree = await ui.drawn()
+	console.log(`=== ${label}`)
+	console.log(lines(tree).map(l => l.replace(/\s+$/, '')).join('\n'))
+	await ui.unmount()
+}
+
+test('C4 pane text render', async ($, on) => {
+	on('session.usage', async () => ({ value: { startedAt: STARTED, context: { tokens: 200000, window: 1000000, percent: 20, breakdown: { totalTokens: 310000, rawMaxTokens: 1000000, percentage: 31 } }, rateLimits: [], cost: { usd: 5.04 } } }) as any)
+	on('session.model', async () => ({ value: 'claude-opus-5-5' }) as any)
+	on('turn.complete', async () => ({ text: '' }) as any)
+	await draw($, 'A0 policy on (default), no turns yet')
+	await turn($, 't1', 'claude-opus-5-5', 1000, 82400, 15000, 2000)
+	await turn($, 't2', 'claude-sonnet-4-5-20250929', 4200, 20000, 30000, 800, 'agent-1')
+	await turn($, 't3', 'claude-opus-5-5', 500, 1500, 0, 0)
+	await $.turn.complete({ answer: '', durationMs: 1, isAborted: true, turnId: 't4', reason: 'aborted' } as any)
+	await draw($, 'A1 policy on, after turns')
+	console.log('=== policy off command result:', JSON.stringify(await $.command.run({ command: 'studio', args: 'policy off' } as any)))
+	await draw($, 'B policy off')
+	console.log('=== policy on command result:', JSON.stringify(await $.command.run({ command: 'studio', args: 'policy on' } as any)))
+	await draw($, 'C policy back on')
+})

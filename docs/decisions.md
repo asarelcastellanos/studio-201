@@ -256,3 +256,89 @@ Status: default, accepted with the pane design on 2026-11-19.
 | A9 | Each repo stores its board URL in `.studio/config.json`. | No lookup each time. | One more file per repo. |
 | A10 | Running agents are ordered longest first. | A stuck agent rises to the top. | The newest work sits lower. |
 | A11 | The pane is rebuilt from scratch, keeping the old monitor's layout. The old monitor is turned off at install. | Clean repo. | Rewrites working code. |
+
+## Forecast, issue #12
+
+**D60. Unit tests run with `node --test` and Node's built-in TypeScript type stripping.** The repo had no test runner, no `package.json` and no build step. The test imports `../src/forecast.ts` with the extension. The command is `node --test tests/forecast.test.ts`.
+Why: it adds no dependency and no build step, and C6 needs one test file.
+Gave up: a runner such as vitest, and extensionless imports in this file.
+Status: default.
+
+**D61. The forecast needs at least 3 readings inside the window span.** Fewer than 3, or readings that all share one time, return "not enough data" (C7). A reading at 100% or more needs no fit, so it counts as a hit at that reading's time even with fewer than 3.
+Why: two points always make a perfect line, so 3 is the smallest count that shows a trend. A 100% reading is a fact, not a projection.
+Gave up: a longer minimum, which would delay the first forecast.
+Status: default.
+
+**D62. A forecast that lands exactly on the reset time counts as "pace is fine".** The forecast time must be strictly before the reset. A fitted time earlier than now is moved to now.
+Why: at the reset the window empties, so 100% is never held.
+Status: default.
+
+**D63. The Pacific time format is "Sat Nov 21, 12:10 AM PST", with the zone abbreviation.** The formatter uses `Intl.DateTimeFormat` with `America/Los_Angeles`.
+Why: A5 asks for day, date and time. The abbreviation tells PST from PDT on 1 November, when 1:10 AM happens twice.
+Status: default.
+
+## Pane frame, issue #10
+
+**D56. Tokens used sums all four counts, cache reads included.** Input, output, cache read and cache creation tokens from each turn's usage all add up.
+Why: it matches the total the engine reports per turn, and it shows how much the session moved, not only what it billed at full rate.
+Gave up: a smaller number that leaves out cache reads.
+Status: default.
+
+**D57. Tokens by model reset when the mod reloads.** The engine has no whole-session tokens-by-model call, so the mod adds up `turn.complete` usage in memory, subagent turns included. A reload or a resumed session starts the totals at zero.
+Why: C4 does not ask for history, and storing totals would need a session id the mod does not have.
+Gave up: totals that survive a reload.
+Status: default.
+
+**D58. The Board slot draws nothing until C9 fills it.** The pane header has a slot for the Board link and passes nothing to it yet.
+Why: D49 puts the Board link in the header, and C9 owns the link.
+Status: default.
+
+**D59. The policy block shows on or off and tokens by model, without the design's role lines.** The design lists which model plays main and agents. The pane leaves those lines out, and the engine draws the close control, so the design's "×" is dropped too.
+Why: C4 asks for whether the policy is on and tokens by model. No call tells the mod each role's model.
+Gave up: the role lines in the Policy block.
+Status: default.
+
+**D72. The pane shows the session start time, not elapsed time.** The line reads "since 10:02 AM" in Pacific time. The elapsed value is gone.
+Why: the engine has no timer, and the pane redraws only on `turn.complete`, so an elapsed value goes stale between turns. A start time never does. The pane also redraws on every `turn.complete`, including turns with no usage.
+Gave up: a running elapsed value, or one labelled with its last update.
+Status: default.
+
+**D73. Token totals reset when `startedAt` changes, and the lines say "since load".** The mod compares `usage.startedAt` with the last value it saw and clears the totals on a change, which a `/clear` causes. After a resume or reload the totals still start at zero, so the label says they count from when the pane loaded. This refines D57.
+Why: the engine has no whole-session tokens-by-model call, and cost and start time count from the session start.
+Gave up: totals that match cost after a resume.
+Status: default.
+
+**D74. The context figure comes from the /context breakdown.** The pane asks `$.session.usage({ breakdown: 'summary' })` and shows `totalTokens`, `rawMaxTokens` and `percentage`, so the percent matches /context. It falls back to the status-line figures when the breakdown is absent. The `summary` detail estimates locally and sends no token-count requests.
+Why: QA compares the pane with /context, which measures against the compaction window.
+Gave up: the exact token counts of the `full` detail.
+Status: default.
+
+**D75. Usage readings persist in the plugin store, capped to 7 days.** Each `turn.complete` reads `rateLimits` and appends one reading per window to `$.store` under the key `readings`. Readings older than 7 days are dropped on each write. The pane reads them back on every draw. The store is a JSON file kept between sessions and reloads, so the 7-day forecast keeps its 24 hours of history.
+Why: A1 needs 24 hours of history for 7d, and in-memory readings would be lost on every reload.
+Gave up: readings that are exact per session. The store is shared by every session of the plugin, and two sessions finishing a turn at once may drop one reading.
+Status: default.
+
+**D76. A drop in percent clears that window's readings.** If a new reading is lower than the last one, the window has reset, so the mod keeps only the new reading. The forecast function fits one straight line, and readings from before a reset would give it a false downward slope.
+Why: usage inside a window only rises, so a drop means a reset, and the forecast needs no change.
+Gave up: forecasts right after a reset, which show "not enough readings" until three new readings arrive.
+Status: default.
+
+**D77. Pane times are "Fri 11/20" and "2:00 PM PT" on two lines.** The pane does not use `formatPacific`, which is 26 characters wide. The day and date line comes from `formatDay` in `src/usage.ts`, the time from `formatClock`, and the pane adds "PT". A window with no `resetsAt` shows no reset line and no forecast.
+Why: the pane is 20 columns wide, and the design page wraps its times the same way.
+Gave up: the zone abbreviation PST or PDT, which "PT" replaces.
+Status: default.
+
+**D78. A change in resetsAt clears that window's readings.** Each stored reading carries the window's `resetsAt`. A new reading clears the window's history only when its `resetsAt` differs from the last stored one. A dip in percent with the same `resetsAt` keeps the history. This replaces D76.
+Why: a 0.1 dip after 24 rising 7d readings wiped the history and dropped the forecast to not-enough-data, while the reset time is the signal the API gives for a new window.
+Gave up: detecting a reset when `resetsAt` is missing. Such readings are appended and never clear the history.
+Status: default.
+
+**D79. Pane token figures count conversation turns only.** The tokens line and the per-model rows sum `turn.complete` usage since the pane loaded. They do not match `/cost`, which also counts compaction, summaries and helper calls such as the auto-mode classifier. The pane labels them "chat" and "chat tokens". Cost, from `$.session.usage().cost`, is the figure that covers everything. C4 passes on model, cost and context matching `/cost` and `/context`.
+Why: the engine exposes no per-model session total, and compaction, summaries and helper calls never reach `turn.complete`.
+Gave up: token figures that match `/cost`.
+Status: agreed (owner approved on 2026-11-20).
+
+**D80. The 7d percent can differ from /usage by one point when the reading is stale.** The pane rounds to nearest and shows the reading from the last response. `/usage` fetches a fresh reading, so the two differ by one point only when the pane's reading is stale.
+Why: the engine delivers rate limits with each response, not on demand.
+Gave up: an exact match with `/usage` between responses.
+Status: agreed (owner approved on 2026-11-20).
