@@ -34,3 +34,10 @@ Tokens by model do not match. With no prompt between the two shots, the pane sho
 - The 1:12:53 screenshot on the Desktop was not part of the brief and is not filed.
 
 Verdict: model, cost, context percent, policy toggle and dock hold. Tokens by model is a gap, tracked in #73.
+
+## After #73
+
+Verdict: PASS.
+
+- Tokens by model: D79 (agreed 2026-11-20) defines the pane rows as conversation turns only, labelled "chat". Model, cost and context match `/cost` and `/context`, so the gap above is resolved.
+- Render at 41a6964 (#77 merged): `render-after-73.txt` shows `157k chat` under Session and a `chat tokens` heading over `opus 5.5   102k` and `sonnet 4.5 55k`. Test source: `c4-after-73.test.tsx.txt`.
