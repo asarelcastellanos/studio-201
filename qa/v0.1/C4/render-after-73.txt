@@ -1,0 +1,134 @@
+$ claude plugin test .   (throwaway test outside the repo, src and hooks from origin/feature/session-meter at 41a6964, 7d fed percentUsed 41.6)
+=== A0 policy on (default), no turns yet
+Studio 201
+Opus 5.5
+
+── Session ─────────
+since 10:02 AM
+0 chat
+est. $5.04
+
+── Context ─────────
+███░░░░░░░ 31%
+310k / 1M
+
+── Usage ───────────
+5h █░░░░░░░ 12%
+resets Fri 11/20
+  3:00 PM PT
+pace: not enough
+  readings yet
+
+7d ███░░░░░ 42%
+resets Tue 11/24
+  12:00 PM PT
+pace: not enough
+  readings yet
+
+── Policy ──────────
+on
+=== A1 policy on, after turns
+Studio 201
+Opus 5.5
+
+── Session ─────────
+since 10:02 AM
+157k chat
+est. $5.04
+
+── Context ─────────
+███░░░░░░░ 31%
+310k / 1M
+
+── Usage ───────────
+5h █░░░░░░░ 12%
+resets Fri 11/20
+  3:00 PM PT
+pace: not enough
+  readings yet
+
+7d ███░░░░░ 42%
+resets Tue 11/24
+  12:00 PM PT
+pace: not enough
+  readings yet
+
+── Policy ──────────
+on
+
+chat tokens
+opus 5.5   102k
+sonnet 4.5 55k
+=== policy off command result: {"text":"off"}
+=== B policy off
+Studio 201
+Opus 5.5
+
+── Session ─────────
+since 10:02 AM
+157k chat
+est. $5.04
+
+── Context ─────────
+███░░░░░░░ 31%
+310k / 1M
+
+── Usage ───────────
+5h █░░░░░░░ 12%
+resets Fri 11/20
+  3:00 PM PT
+pace: not enough
+  readings yet
+
+7d ███░░░░░ 42%
+resets Tue 11/24
+  12:00 PM PT
+pace: not enough
+  readings yet
+
+── Policy ──────────
+off
+
+chat tokens
+opus 5.5   102k
+sonnet 4.5 55k
+=== policy on command result: {"text":"on"}
+=== C policy back on
+Studio 201
+Opus 5.5
+
+── Session ─────────
+since 10:02 AM
+157k chat
+est. $5.04
+
+── Context ─────────
+███░░░░░░░ 31%
+310k / 1M
+
+── Usage ───────────
+5h █░░░░░░░ 12%
+resets Fri 11/20
+  3:00 PM PT
+pace: not enough
+  readings yet
+
+7d ███░░░░░ 42%
+resets Tue 11/24
+  12:00 PM PT
+pace: not enough
+  readings yet
+
+── Policy ──────────
+on
+
+chat tokens
+opus 5.5   102k
+sonnet 4.5 55k
+
+c4.test.tsx:
+(pass) C4 pane text render [75.56ms]
+
+ 1 pass
+ 0 fail
+Ran 1 test across 1 file. [0.18s]

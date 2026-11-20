@@ -23,14 +23,23 @@ import {
 	sameSnapshot,
 } from '../src/setup'
 import type { Mode, Paths, SetupIo } from '../src/setup'
+import { renderPane } from '../src/pane'
+import { parseReadings, recordReadings, viewWindows } from '../src/readings'
 import { runUpdate } from '../src/update'
 import type { UpdateIo } from '../src/update'
+import { addTurn, sumTokens } from '../src/usage'
+import type { Totals } from '../src/usage'
 
 const NAME = 'studio'
 const BOARD_NAME = 'board'
+const READINGS_KEY = 'readings'
 const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
-const USAGE = 'Usage: /studio policy [on|off], /studio setup or /studio update'
+const USAGE = 'Usage: /studio opens the pane, /studio policy [on|off], /studio setup or /studio update'
+const PANE_ID = 'studio-201'
+const PANE_TITLE = 'Studio 201'
+const totals: Totals = new Map()
+let lastStartedAt: number | undefined
 const UPDATE_TOOL = 'studio_update'
 const UPDATE_TOOL_ID = 'mcp__studio-201__studio_update'
 const UPDATE_ASK_REASON = 'studio-201: this pulls the clone and reinstalls Studio 201. Approve or decline.'
@@ -46,8 +55,10 @@ const UPDATE_STEP_TIMEOUT_MS = 120000
 
 async function policyCommand($: EngineInterface, args: string): Promise<string> {
 	const arg = args.trim().toLowerCase()
-	if (arg === 'on' || arg === 'off') await update($, policyAtom, () => arg === 'on')
-	else if (arg !== '') return USAGE
+	if (arg === 'on' || arg === 'off') {
+		await update($, policyAtom, () => arg === 'on')
+		$.ui.invalidate('ui.render')
+	} else if (arg !== '') return USAGE
 	return (await read($, policyAtom)) ? 'on' : 'off'
 }
 
@@ -215,6 +226,16 @@ async function updateStudio($: EngineInterface): Promise<{ ok: boolean; text: st
 	}
 }
 
+function syncTotals(startedAt: number): void {
+	if (lastStartedAt !== undefined && lastStartedAt !== startedAt) totals.clear()
+	lastStartedAt = startedAt
+}
+
+async function openPane($: EngineInterface): Promise<string> {
+	const opened = await $.ui.open({ id: PANE_ID, title: PANE_TITLE, backgroundColor: 'transparent' })
+	return opened.isPlaced ? 'Studio 201 pane open.' : `The pane could not open: ${opened.reason}`
+}
+
 type Restriction = { strict: boolean; refusal: string }
 
 async function baseContext($: EngineInterface, strict: boolean): Promise<PolicyContext> {
@@ -336,6 +357,7 @@ export const register: Register = on => {
 		})
 		await $.tool.register({ name: UPDATE_TOOL, description: UPDATE_TOOL_DESCRIPTION })
 		const started = await next(e)
+		if (e.isInteractive) await openPane($).catch(() => undefined)
 		if (e.isInteractive && (await $.store.get(SETUP_KEY)) === undefined) startSetup($)
 		return started
 	})
@@ -349,6 +371,8 @@ export const register: Register = on => {
 				return { text: await setupCommand($) }
 			case 'update':
 				return { text: (await updateStudio($)).text }
+			case '':
+				return { text: await openPane($) }
 			default:
 				return { text: USAGE }
 		}
@@ -359,6 +383,43 @@ export const register: Register = on => {
 			(await $.fs.exists(path)) ? await $.fs.read(path) : undefined
 		return { text: (await readBoardUrl({ read }, await $.session.cwd())) ?? NO_BOARD }
 	}).catch(() => ({ text: NO_BOARD }))
+
+	on('turn.complete', async ($, e, next) => {
+		const usage = await $.session.usage()
+		if (e.usage !== undefined) {
+			syncTotals(usage.startedAt)
+			addTurn(totals, e.usage.model, e.usage)
+		}
+		const readings = recordReadings(parseReadings(await $.store.get(READINGS_KEY)), usage.rateLimits, await $.clock.now())
+		await $.store.set(READINGS_KEY, readings)
+		$.ui.invalidate('ui.render')
+		return next(e)
+	}).catch(($, e, next) => {
+		$.ui.invalidate('ui.render')
+		return next(e)
+	})
+
+	on('ui.render', { component: 'Pane', requestId: PANE_ID }, async ($, e) => {
+		const usage = await $.session.usage({ breakdown: 'summary' })
+		syncTotals(usage.startedAt)
+		const breakdown = usage.context.breakdown
+		return renderPane($.ui.resolve(e), {
+			model: await $.session.model(),
+			policyOn: await read($, policyAtom),
+			byModel: totals,
+			startedAt: usage.startedAt,
+			tokens: sumTokens(totals),
+			cost: usage.cost,
+			windows: viewWindows(parseReadings(await $.store.get(READINGS_KEY)), usage.rateLimits, await $.clock.now()),
+			context:
+				breakdown === undefined
+					? usage.context
+					: { tokens: breakdown.totalTokens, window: breakdown.rawMaxTokens, percent: breakdown.percentage },
+		})
+	}).catch(($, e) => {
+		const { Text } = $.ui.resolve(e)
+		return <Text>studio: pane failed to draw.</Text>
+	})
 
 	on('tool.run', { tool: UPDATE_TOOL_ID }, async $ => {
 		const { ok, text } = await updateStudio($)
