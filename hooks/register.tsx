@@ -5,17 +5,71 @@ import { ASK_REASON, MERGE_REFUSAL, mergesIntoMain } from '../src/merge'
 import type { Lookup } from '../src/merge'
 import { REFUSAL, bashWritesCode, isCodePath, readOnlyRefusal, readOnlyRole } from '../src/policy'
 import type { PolicyContext } from '../src/policy'
+import { applyPlan, describeNothing, describePlan, describeResult, pathsFor, planSetup, readSnapshot } from '../src/setup'
+import type { SetupIo } from '../src/setup'
 
 const NAME = 'studio'
 const LOOKUP_BUDGET_MS = 20000
 const policyAtom = atom({ plugin: 'studio-201', key: 'policy' } as const, true)
-const USAGE = 'Usage: /studio policy [on|off]'
+const USAGE = 'Usage: /studio policy [on|off] or /studio setup'
+const SETUP_KEY = 'setup'
+const APPLY = 'Apply changes'
+const SKIP = 'Not now'
 
 async function policyCommand($: EngineInterface, args: string): Promise<string> {
 	const arg = args.trim().toLowerCase()
 	if (arg === 'on' || arg === 'off') await update($, policyAtom, () => arg === 'on')
 	else if (arg !== '') return USAGE
 	return (await read($, policyAtom)) ? 'on' : 'off'
+}
+
+function setupIo($: EngineInterface): SetupIo {
+	return {
+		read: async path => ((await $.fs.exists(path)) ? await $.fs.read(path) : undefined),
+		write: (path, text) => $.fs.write(path, text),
+		exists: path => $.fs.exists(path),
+		list: async dir => ((await $.fs.exists(dir)) ? await $.fs.list(dir) : undefined),
+		readlink: async path => {
+			const result = await $.process.run(['readlink', path])
+			return result.exitCode === 0 ? result.stdout.trim() : undefined
+		},
+		link: async (path, target) => {
+			const result = await $.process.run(['ln', '-s', target, path])
+			if (result.exitCode !== 0) throw new Error(`ln -s failed for ${path}: ${result.stderr.trim()}`)
+		},
+	}
+}
+
+async function recordSetup($: EngineInterface, status: 'done' | 'declined'): Promise<void> {
+	await $.store.set(SETUP_KEY, { status, at: new Date(await $.clock.now()).toISOString() })
+}
+
+async function runSetup($: EngineInterface): Promise<string> {
+	const home = (await $.env.get('HOME')) ?? ''
+	if (home === '') throw new Error('HOME is not set')
+	const paths = pathsFor(home, await $.env.get('CLAUDE_CONFIG_DIR'))
+	const io = setupIo($)
+	const plan = planSetup(await readSnapshot(io, paths, `${$.plugin.root}/AGENTS.md`), paths)
+	if (plan.steps.length === 0) {
+		await recordSetup($, 'done')
+		return describeNothing(plan)
+	}
+	const answer = await $.ui.ask(describePlan(plan), { options: [APPLY, SKIP], header: 'Setup' }).catch(() => SKIP)
+	if (answer !== APPLY) {
+		await recordSetup($, 'declined')
+		return 'Setup skipped and nothing changed. Run /studio setup to do it later.'
+	}
+	const backups = await applyPlan(io, plan)
+	await recordSetup($, 'done')
+	return describeResult(plan, backups)
+}
+
+async function setupCommand($: EngineInterface): Promise<string> {
+	try {
+		return await runSetup($)
+	} catch (error) {
+		return `Setup failed: ${error instanceof Error ? error.message : String(error)}`
+	}
 }
 
 type Restriction = { strict: boolean; refusal: string }
@@ -133,7 +187,11 @@ export const register: Register = on => {
 			name: NAME,
 			description: 'Studio 201 commands. ' + USAGE,
 		})
-		return next(e)
+		const started = await next(e)
+		if (e.isInteractive && (await $.store.get(SETUP_KEY)) === undefined) {
+			$.ui.log(await setupCommand($))
+		}
+		return started
 	})
 
 	on('command.run', { command: NAME }, async ($, e) => {
@@ -141,6 +199,8 @@ export const register: Register = on => {
 		switch (name) {
 			case 'policy':
 				return { text: await policyCommand($, rest.join(' ')) }
+			case 'setup':
+				return { text: await setupCommand($) }
 			default:
 				return { text: USAGE }
 		}
