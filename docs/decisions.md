@@ -414,3 +414,20 @@ Status: default.
 Why: the result keeps all its detail and needs no new command or message format.
 Gave up: blank lines between the sections, and one single-row notice.
 Status: default.
+
+## Policy guards, issue #88
+
+**D100. `git merge` is checked by its current branch, and a `$` path ending in `.md` is not code.** The merge guard now treats `git merge` as a merge into main only when the current branch is main or unknown (D55 still applies). `git merge --abort`, `--quit` and `--continue` pass. `git merge origin/main` on an issue branch passes. `gh pr merge` and `git push` keep their checks by subcommand and target branch, and no check reads the words "merge" or "main" elsewhere in a command. The code-edit guard allows a write target with a shell variable in it when the path ends in `.md`, such as `"$SCRATCH/notes.md"`, for the main session. A variable path that does not end in `.md` still counts as code.
+Why: C15 and C14 only listed `gh pr merge`, `git push` and `gh api` for main, so a local `git merge` on main went unchecked. A `.md` suffix is known even when the directory is not.
+Gave up: allowing a variable path that points into the scratchpad but does not end in `.md`.
+Status: default.
+
+**D101. Merge guard and write guard fixes for #88.** This replaces D100 for three parts. (1) `git merge` passes on main with `--abort`, `--quit` or `--continue` only when that flag is the sole argument after `merge`, so `git merge -m --abort x` is a merge. (2) A write target with a shell variable in it counts as non-code only when the whole word was double-quoted and ends in `.md`, such as `"$X.md"`. An unquoted `$X.md` is code again, because word splitting can turn it into other files. A `$(...)` or backtick target stays code. (6) `git pull` is checked like `git merge`, since it can merge into main. Three more changes record the rest of the rework. (3) A subagent's merge check reads its branch from the agent's own `cwd` in `$.agent.list()`, not the session `cwd`, and falls back to the session `cwd` when the agent is not listed. (4) `cd $VAR` resolves when an earlier segment of the same command assigns `VAR` a literal path with no spaces, `$`, backticks, globs or `~`. Otherwise the cwd stays unknown and counts as main (D55). (5) Each branch or base lookup has its own 10 second timeout, replacing the 20 second budget for the whole command.
+Why: the review showed `-m --abort` and unquoted `$X.md` as bypasses, and a subagent on an issue branch was judged by the main session's branch.
+Gave up: allowing an unquoted `$X.md` target, and a total time cap across the lookups of one command.
+Status: default.
+
+**D102. `cd $VAR` resolves only for a sole top-level assignment.** This narrows part (4) of D101. `cd $X`, `cd "$X"` or `cd ${X}` resolves only when three things hold. The name appears exactly once as a plain `X=literal` segment before the cd, with no parentheses, braces, loop or conditional keyword earlier in the command and no `+=`. The name appears nowhere else in the command except that cd, so `export`, `declare`, `read`, `eval`, `printf -v`, `for`, `unset`, other expansions and later assignments all disable it. The literal has no whitespace, `$`, backtick, quote, glob or `~`. In every other case the cwd is unknown and counts as main (D55). `pushd`, `popd` and `cd -` also make the cwd unknown.
+Why: D101 trusted the last assignment it saw, so `export X=/r`, a loop, a subshell or `pushd` left a stale value and a merge on main passed.
+Gave up: resolving a quoted literal such as `X='/w'`, and resolving after any earlier `(`, `{` or loop keyword in the command.
+Status: default.
