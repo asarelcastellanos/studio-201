@@ -31,9 +31,12 @@
 
 ## Writing
 
-These rules apply to replies, docs, commit messages, PR bodies and UI copy.
+These rules apply to replies, docs, commit messages, PR bodies and UI copy. They apply to every reply the main session writes, short ones included.
 
 - Use no em dashes or en dashes. Use a period or a comma. Use straight quotes and sentence-case headings.
+- Do not use a colon to join two clauses. Write two sentences instead.
+- Do not start a line with a bold label that restates the line. Bold only the term a reader scans for.
+- Apply the no-op test to each sentence. Delete it if removing it would not change what the reader does.
 - Cut filler and hedges. "In order to" becomes "To". Delete "It is important to note that". "Could potentially" becomes "may".
 - Do not use these words: additionally, crucial, delve, pivotal, showcase, testament, vibrant, leverage, utilize. Write "is" or "has", not "serves as" or "boasts".
 - Use active voice and name the actor. Write "the loader parses the file", not "the file is parsed".
