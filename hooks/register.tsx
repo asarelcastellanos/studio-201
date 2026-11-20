@@ -190,9 +190,13 @@ async function setupCommand($: EngineInterface): Promise<string> {
 	return (await runSetup($)).text
 }
 
+function logLines($: EngineInterface, text: string): void {
+	for (const line of text.split('\n')) if (line.trim() !== '') $.ui.log(line)
+}
+
 function startSetup($: EngineInterface): void {
 	void runSetup($)
-		.then(outcome => (outcome.show ? $.ui.log(outcome.text) : undefined))
+		.then(outcome => (outcome.show ? logLines($, outcome.text) : undefined))
 		.catch(() => undefined)
 }
 
@@ -204,7 +208,7 @@ function updateIo($: EngineInterface): UpdateIo {
 			const record = await $.store.get(SETUP_KEY)
 			return typeof record === 'object' && record !== null && 'status' in record && record.status === 'done'
 		},
-		log: text => $.ui.log(text),
+		log: text => logLines($, text),
 	}
 }
 

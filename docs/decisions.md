@@ -364,3 +364,10 @@ Status: agreed (owner approved on 2026-11-20).
 Why: `Link` draws an OSC 8 hyperlink on the terminal, and the pane is 20 columns wide, so a dim hint line would crowd the header. `/board` already prints the setup hint.
 Gave up: a hint in the pane for a repo with no board.
 Status: default.
+
+## Setup notice, issue #74
+
+**D99. Multi-line plugin output goes to `$.ui.log` one line at a time.** `$.ui.log` draws one transcript row and the terminal shows a line break inside it as replacement glyphs. `logLines` in `hooks/register.tsx` splits the text on line breaks and logs each non-empty line as its own row. The first-run setup result and the `/studio update` log both use it. `/studio setup` still returns the whole text.
+Why: the result keeps all its detail and needs no new command or message format.
+Gave up: blank lines between the sections, and one single-row notice.
+Status: default.
