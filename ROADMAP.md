@@ -29,6 +29,7 @@ During the 0.1 trial, the process steps (spec, plan, review and QA) run by hand.
 - Receipt PRs: each claim with its proof and evidence link.
 - Assumptions skill and git-flow skill.
 - Compound step: a repeated mistake becomes a check.
+- Deslop skill: before review, remove dead code, needless abstraction, defensive checks inside trusted code, and noise comments.
 
 ## 0.3: Design
 

@@ -112,6 +112,26 @@ Status: agreed.
 **D26. v0.1 plan approved.** Build order: spike, F5, F1, F3, F2, F4, then install. Decision cards K1 to K10 accepted as recommended. See [plan/v0.1.md](plan/v0.1.md).
 Status: agreed.
 
+**D27. `/studio update` runs the update, then tries to reload.** It runs `claude plugin marketplace update` and `claude plugin update -y`, then tries to run `/reload-plugins` for me. If that fails, it prints "Updated to vX. Run /reload-plugins to apply."
+Why: `claude plugin update` says a restart is required, and the mod API has no reload call. Running the built-in command from a mod is untested until QA tries it in a live session. Source: spike #23.
+Status: default.
+
+**D28. The mod's code is split into files under `src/`.** `hooks/hooks.json` lists one entry file, `"modules": ["./register.tsx"]`. Imports must be static `import` statements.
+Why: a test mod split this way passed `claude plugin validate`, `claude plugin test`, and the TypeScript check. Source: spike #23.
+Status: default.
+
+**D29. QA evidence for the pane is a text render from `claude plugin test`, saved to a file.** Real screenshots stay a step for me.
+Why: the test kit can mount the pane and return its text. A real terminal screenshot needs macOS Screen Recording permission. Source: spike #23.
+Status: default.
+
+**D30. Codex reads the shared rules from `~/.codex/AGENTS.md`, plus the repo's `AGENTS.md`.**
+Why: the official Codex docs say it reads the global file first, then one file per directory from the repo root down. Source: spike #23.
+Status: default.
+
+**D31. Almost no code comments, and a deslop pass before review.** A comment stays only when the code can't say the same thing: a workaround for an outside bug, a constraint that isn't obvious, or a link to a spec claim. Everything else is fixed by renaming or restructuring. Reviewers flag the rest. A deslop skill, adapted from Cursor's team kit and pstack, comes in 0.2 and removes dead code, needless abstraction, defensive checks inside trusted code, and noise comments.
+Why: comments drift from the code and pad agent output. Clear names do the same job and stay true.
+Status: agreed.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
