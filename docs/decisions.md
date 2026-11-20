@@ -207,6 +207,14 @@ Gave up: Keeping a personal setup active next to Studio 201.
 Replaces the parts of S8 and S9 that kept personal rules and only named two mods.
 Status: agreed.
 
+**D48. Board columns and fields.** The Status options are Backlog, Ready, In progress, In review, QA and Done. The fields are Agent (single select: scout, researcher, reviewer, design-critic, qa-runner, coder, ui-builder, writer, mechanic, owner), Type (single select: feature, claim, task) and Version (text).
+Why: the spec names "status columns and fields" without listing them. The columns follow the branch flow (review, then QA). The Agent field records who did the work (D8).
+Status: default.
+
+**D49. The pane Board link waits for the pane frame.** F3 ships `/board` and the board URL reader. The pane header link wires in with F2's pane frame (C4). C9 (#15) stays open until then.
+Why: the plan builds F3 before F2, and there is no pane header yet.
+Status: default.
+
 ## Spec assumptions, v0.1
 
 S1 to S9 are listed in [spec/v0.1.md](spec/v0.1.md). Status: default, accepted with the spec on 2026-11-19.
