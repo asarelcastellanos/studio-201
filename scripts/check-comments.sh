@@ -18,43 +18,91 @@ if [ -z "$merge_base" ]; then
   exit 2
 fi
 
+work=$(mktemp -d "${TMPDIR:-/tmp}/check-comments.XXXXXX") || {
+  echo "Cannot create a temporary directory." >&2
+  exit 2
+}
+cleanup() {
+  rm -rf "$work"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+diff_opts=(-c core.quotepath=off diff -U0 --no-color --no-ext-diff --src-prefix=a/ --dst-prefix=b/)
+
+git "${diff_opts[@]}" "$merge_base" -- > "$work/diff" || {
+  echo "git diff failed." >&2
+  exit 2
+}
+
+git ls-files --others --exclude-standard -z > "$work/untracked" || {
+  echo "git ls-files failed." >&2
+  exit 2
+}
+while IFS= read -r -d '' file; do
+  [ -f "$file" ] || continue
+  git "${diff_opts[@]}" --no-index -- /dev/null "$file" >> "$work/diff"
+  if [ $? -gt 1 ]; then
+    echo "git diff failed for $file." >&2
+    exit 2
+  fi
+done < "$work/untracked"
+
 program='
-function has_trailing(s,   i, c, n, q, prev) {
+function scan(s, slash, hash, dash, html,   i, c, n, q, prev) {
   q = ""
   n = length(s)
   for (i = 1; i <= n; i++) {
     c = substr(s, i, 1)
+    prev = substr(s, i - 1, 1)
     if (q != "") {
       if (c == "\\") i++
       else if (c == q) q = ""
     } else if (c == "\"" || c == "\047" || c == "`") {
       q = c
-    } else if (c == "/" && (substr(s, i + 1, 1) == "/" || substr(s, i + 1, 1) == "*")) {
-      prev = substr(s, i - 1, 1)
-      if (i > 1 && (prev == " " || prev == "\t")) return 1
+    } else if (c == "\\") {
+      i++
+    } else if (c == "/" && slash) {
+      if (substr(s, i + 1, 1) == "*") return i
+      if (substr(s, i + 1, 1) == "/" && prev != ":") return i
+    } else if (c == "#" && hash) {
+      if (i == 1 || prev == " " || prev == "\t") return i
+    } else if (c == "-" && dash) {
+      if (substr(s, i + 1, 1) == "-") return i
+    } else if (c == "<" && html) {
+      if (substr(s, i, 4) == "<!--") return i
     }
   }
   return 0
 }
 
-function is_comment(text, path, lineno, ext,   t) {
+function opens_block(text, pos) {
+  if (substr(text, pos, 2) != "/*") return 0
+  return index(substr(text, pos + 2), "*/") == 0
+}
+
+function is_comment(text, lineno,   t, pos) {
   t = text
   sub(/^[ \t]+/, "", t)
   if (lineno == 1 && t ~ /^#!/) return 0
-  if (t ~ /^\/\//) return 1
-  if (t ~ /^\/\*/) return 1
-  if (t ~ /^\*($|[ \t\/])/) return 1
-  if (t ~ /^<!--/) return 1
-  if (t ~ /^\{\/\*/) return 1
-  if (t ~ /^#/ && (ext == "" || ext ~ /^(sh|bash|py|rb|yml|yaml|toml)$/)) return 1
-  if (ext ~ /^(ts|tsx|js|jsx|mjs|cjs|css)$/ && has_trailing(text)) return 1
-  return 0
+  if (inblock) {
+    if (index(text, "*/") > 0) inblock = 0
+    return 1
+  }
+  pos = 0
+  if (t ~ /^\/\// || t ~ /^\*\// || t ~ /^<!--/) return 1
+  if (t ~ /^\/\*/ || t ~ /^\{\/\*/) pos = index(text, "/*")
+  else if (t ~ /^#/ && hash) return 1
+  else if (t ~ /^--/ && dash) return 1
+  else pos = scan(text, slash, hash, dash, html)
+  if (pos == 0) return 0
+  if (opens_block(text, pos)) inblock = 1
+  return 1
 }
 
-function extension(path,   base, n, parts) {
-  base = path
-  sub(/.*\//, "", base)
-  n = split(base, parts, ".")
+function extension(name,   n, parts) {
+  n = split(name, parts, ".")
   if (n > 1 && parts[1] != "") return tolower(parts[n])
   return ""
 }
@@ -62,6 +110,7 @@ function extension(path,   base, n, parts) {
 /^diff --git / {
   inhunk = 0
   skip = 1
+  inblock = 0
   next
 }
 
@@ -70,13 +119,20 @@ function extension(path,   base, n, parts) {
   sub(/\t.*$/, "", path)
   if (path == "/dev/null") { skip = 1; next }
   sub(/^b\//, "", path)
-  ext = extension(path)
+  name = path
+  sub(/.*\//, "", name)
+  ext = extension(name)
   skip = (ext == "md" || path ~ /^docs\//)
+  hash = (ext == "" || name ~ /^(Dockerfile|Makefile)/ || ext ~ /^(sh|bash|zsh|fish|py|rb|yml|yaml|toml|ini|conf|cfg|env|mk|ps1|r|pl|tf|nix)$/)
+  slash = (ext ~ /^(ts|tsx|js|jsx|mjs|cjs|mts|cts|css|jsonc|json5|go|rs|swift|kt|java|c|h|cpp|hpp|cs|scss|less)$/)
+  dash = (ext ~ /^(sql|lua)$/)
+  html = (ext ~ /^(html|htm|xml|svg|vue|svelte|tsx|jsx)$/)
   next
 }
 
 /^@@ / {
   inhunk = 1
+  inblock = 0
   split($0, parts, " ")
   start = parts[3]
   sub(/^\+/, "", start)
@@ -87,7 +143,7 @@ function extension(path,   base, n, parts) {
 
 inhunk && /^\+/ {
   text = substr($0, 2)
-  if (!skip && is_comment(text, path, lineno, ext)) {
+  if (!skip && is_comment(text, lineno)) {
     print path ":" lineno ": " text
     hits++
   }
@@ -98,16 +154,8 @@ inhunk && /^\+/ {
 END { exit (hits > 0 ? 1 : 0) }
 '
 
-{
-  git -c core.quotepath=off diff -U0 --no-color --no-ext-diff "$merge_base" --
-  git -c core.quotepath=off ls-files --others --exclude-standard -z | while IFS= read -r -d '' file; do
-    [ -f "$file" ] || continue
-    git -c core.quotepath=off diff -U0 --no-color --no-ext-diff --no-index -- /dev/null "$file"
-  done
-} | awk "$program" > "${TMPDIR:-/tmp}/check-comments.$$"
+LC_ALL=C awk "$program" "$work/diff" > "$work/hits"
 status=$?
-hits=$(cat "${TMPDIR:-/tmp}/check-comments.$$")
-rm -f "${TMPDIR:-/tmp}/check-comments.$$"
 
 if [ "$status" -gt 1 ]; then
   echo "Comment scan failed." >&2
@@ -115,8 +163,8 @@ if [ "$status" -gt 1 ]; then
 fi
 
 if [ "$status" -eq 1 ]; then
-  echo "$hits"
-  count=$(echo "$hits" | wc -l | tr -d ' ')
+  cat "$work/hits"
+  count=$(wc -l < "$work/hits" | tr -d ' ')
   echo "$count comment line(s) added. Code must have no comments."
   exit 1
 fi
