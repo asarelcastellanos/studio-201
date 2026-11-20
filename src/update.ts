@@ -1,4 +1,4 @@
-import { applyPlan, planAgentsCopy } from './setup'
+import { applySteps, planAgentsCopy } from './setup'
 import type { Paths, SetupIo } from './setup'
 
 export const PLUGIN_ID = 'studio-201@studio-201'
@@ -103,7 +103,7 @@ async function refreshAgents(io: UpdateIo, paths: Paths, installed: Installed): 
 	if (source === undefined) throw new Error(`${sourcePath} is missing, so AGENTS.md was not refreshed`)
 	const copy = planAgentsCopy(source, await io.files.read(paths.agentsCopy), paths)
 	if (copy === undefined) return
-	await applyPlan(io.files, { steps: [copy], notes: [] })
+	await applySteps(io.files, [copy])
 	io.log(copy.lines.join('\n'))
 }
 

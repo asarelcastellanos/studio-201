@@ -49,16 +49,29 @@ When the repo is public, one command installs it from GitHub:
 
 ### What setup changes
 
-The first interactive session after install runs setup. It lists every change and asks once before it touches anything. If you say no, it changes nothing and does not ask again. Type `/studio setup` to run it later.
+After install, Claude runs on Studio 201. The first interactive session runs setup, which handles whatever was there before. It looks for three groups:
 
-Setup does four things:
+- Rules: anything in `~/.claude/CLAUDE.md` other than the Studio 201 import line, and a `~/.codex/AGENTS.md` that is not the Studio 201 link.
+- Mods and hooks: every entry in `env.CLAUDE_CODE_PLUGIN_DIRS` and the `hooks` key in `~/.claude/settings.json`.
+- Agents and skills: everything in `~/.claude/agents/`, `~/.claude/skills/` and `~/.claude/commands/`.
+
+If it finds none of these, it installs and asks nothing. If it finds any, it lists them and asks one question with two answers:
+
+- Archive it moves each item to `~/.claude/studio-201/archive/<date-time>/`, keeps its relative path, and writes a `RESTORE.md` that says what moved from where and how to put it back.
+- Delete it removes the items for good.
+
+Neither answer keeps the old setup active. If you dismiss the question, setup changes nothing and asks again next session. Type `/studio setup` to run it on demand.
+
+Then setup installs Studio 201:
 
 - Copies `AGENTS.md` to `~/.claude/studio-201/AGENTS.md`.
-- Adds one import line to `~/.claude/CLAUDE.md`: `@` followed by the absolute path of that copy. It creates the file if it is missing and never adds the line twice.
-- Links `~/.codex/AGENTS.md` to that copy so Codex reads the same rules. If `~/.codex/AGENTS.md` already exists and is not that link, setup leaves it alone and says so. If `~/.codex` does not exist, setup skips Codex.
-- Turns off the claude-workbench mods `model-policy`, `session-monitor` and `session-coach`. It removes them from `env.CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json` and removes the claude-workbench import line from `~/.claude/CLAUDE.md`. The workbench stays on disk.
+- Makes `~/.claude/CLAUDE.md` only one import line: `@` followed by the absolute path of that copy.
+- Links `~/.codex/AGENTS.md` to that copy, if `~/.codex` exists.
+- Removes the old mods and hooks from `settings.json` and keeps every other key.
 
-Setup backs up each file it edits as `<file>.studio-201.bak` before the edit. It keeps the first backup if one exists. If `CLAUDE_CONFIG_DIR` is set, setup uses that folder instead of `~/.claude`. Restart Claude Code after setup so it loads the rules.
+Credentials, other settings keys, other plugins, MCP connectors, projects, memory and history are never touched. If `CLAUDE_CONFIG_DIR` is set, setup uses that folder instead of `~/.claude`.
+
+Setup checks that `settings.json` is strict JSON before it changes anything. If the file has a comment or a trailing comma, setup stops and changes nothing. After you fix the file, run `/studio setup`. Setup writes each file through a temporary file and a rename, and keeps line endings as they were. If a step fails, it reports what was already done and where the archive is. Restart Claude Code after setup so it loads the rules.
 
 ## Update
 
