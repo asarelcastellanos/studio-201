@@ -332,3 +332,13 @@ Status: default.
 Why: a 0.1 dip after 24 rising 7d readings wiped the history and dropped the forecast to not-enough-data, while the reset time is the signal the API gives for a new window.
 Gave up: detecting a reset when `resetsAt` is missing. Such readings are appended and never clear the history.
 Status: default.
+
+**D79. Pane token figures count conversation turns only.** The tokens line and the per-model rows sum `turn.complete` usage since the pane loaded. They do not match `/cost`, which also counts compaction, summaries and helper calls such as the auto-mode classifier. The pane labels them "chat" and "chat tokens". Cost, from `$.session.usage().cost`, is the figure that covers everything. C4 passes on model, cost and context matching `/cost` and `/context`.
+Why: the engine exposes no per-model session total, and compaction, summaries and helper calls never reach `turn.complete`.
+Gave up: token figures that match `/cost`.
+Status: agreed (owner approved on 2026-11-20).
+
+**D80. The 7d percent can differ from /usage by one point when the reading is stale.** The pane rounds to nearest and shows the reading from the last response. `/usage` fetches a fresh reading, so the two differ by one point only when the pane's reading is stale.
+Why: the engine delivers rate limits with each response, not on demand.
+Gave up: an exact match with `/usage` between responses.
+Status: agreed (owner approved on 2026-11-20).
