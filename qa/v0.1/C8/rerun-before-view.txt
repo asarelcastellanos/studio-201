@@ -1,0 +1,64 @@
+$ gh project view 8 --owner asarelcastellanos
+
+  # Title                                                                     
+                                                                              
+  Studio 201                                                                  
+                                                                              
+  ## Description                                                              
+                                                                              
+  --                                                                          
+                                                                              
+  ## Visibility                                                               
+                                                                              
+  Private                                                                     
+                                                                              
+  ## URL                                                                      
+                                                                              
+  https://github.com/users/asarelcastellanos/projects/8                       
+                                                                              
+  ## Item count                                                               
+                                                                              
+  24                                                                          
+                                                                              
+  ## Readme                                                                   
+                                                                              
+  --                                                                          
+                                                                              
+  ## Field Name (Field Type)                                                  
+                                                                              
+  Title (ProjectV2Field)                                                      
+                                                                              
+  Assignees (ProjectV2Field)                                                  
+                                                                              
+  Status (ProjectV2SingleSelectField)                                         
+                                                                              
+  Labels (ProjectV2Field)                                                     
+                                                                              
+  Linked pull requests (ProjectV2Field)                                       
+                                                                              
+  Milestone (ProjectV2Field)                                                  
+                                                                              
+  Repository (ProjectV2Field)                                                 
+                                                                              
+  Reviewers (ProjectV2Field)                                                  
+                                                                              
+  Parent issue (ProjectV2Field)                                               
+                                                                              
+  Sub-issues progress (ProjectV2Field)                                        
+                                                                              
+  Created (ProjectV2Field)                                                    
+                                                                              
+  Updated (ProjectV2Field)                                                    
+                                                                              
+  Closed (ProjectV2Field)                                                     
+                                                                              
+  Agent (ProjectV2SingleSelectField)                                          
+                                                                              
+  Model (ProjectV2SingleSelectField)                                          
+                                                                              
+  Claim (ProjectV2Field)                                                      
+                                                                              
+  Round (ProjectV2Field)                                                      
+                                                                              
+  Size (ProjectV2SingleSelectField)                                           
+

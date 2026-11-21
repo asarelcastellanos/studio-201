@@ -1,0 +1,8 @@
+$ git status --short   (after writing .studio/config.json in the worktree)
+(the qa/v0.1/C9/ line is this evidence folder and is filtered out. .studio/ is not listed)
+$ git status --short --ignored | grep studio
+!! .studio/
+$ git check-ignore -v .studio/config.json
+.gitignore:7:.studio/	.studio/config.json
+$ cat .studio/config.json
+{"board": "https://github.com/users/asarelcastellanos/projects/8"}

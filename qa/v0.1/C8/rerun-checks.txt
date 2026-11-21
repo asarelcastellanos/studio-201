@@ -1,0 +1,9 @@
+$ graphql repo linked projects, project #8 views, project list
+[{"number":8,"title":"Studio 201"}]
+[{"layout":"BOARD_LAYOUT","name":"Board"},{"layout":"TABLE_LAYOUT","name":"Open findings"},{"layout":"TABLE_LAYOUT","name":"By agent"}]
+{"number":9,"title":"studio-201"}
+{"number":8,"title":"Studio 201"}
+{"number":7,"title":"SettleIn to v1.0.0"}
+{"number":6,"title":"Firefighting v0.1.0 beta"}
+{"number":5,"title":"Housewarm to 1.0.0"}
+{"number":4,"title":"Lyrebird"}
