@@ -431,3 +431,8 @@ Status: default.
 Why: D101 trusted the last assignment it saw, so `export X=/r`, a loop, a subshell or `pushd` left a stale value and a merge on main passed.
 Gave up: resolving a quoted literal such as `X='/w'`, and resolving after any earlier `(`, `{` or loop keyword in the command.
 Status: default.
+
+**D103. Token figures count new tokens only.** Each turn's tokens are input, output and cache writes. Cache reads are not counted. This replaces the counting rule in D56 and applies to the chat total, the per-model rows and the agent rows. Owner decision on 2026-11-20.
+Why: every turn re-reads the whole conversation from cache, so counting reads grew the figures by the context size each turn. Live, the pane showed opus 5.5 at 4.1M with a 335k context.
+Gave up: a figure that matches the total the engine reports per turn.
+Status: agreed.
