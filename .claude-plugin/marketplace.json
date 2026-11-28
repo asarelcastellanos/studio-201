@@ -1,0 +1,11 @@
+{
+  "name": "studio-201",
+  "owner": { "name": "asarelcastellanos" },
+  "plugins": [
+    {
+      "name": "studio-pane",
+      "source": "./plugins/studio-pane",
+      "description": "Side pane with session info and Claude and Codex usage limits"
+    }
+  ]
+}

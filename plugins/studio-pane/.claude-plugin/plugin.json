@@ -1,0 +1,5 @@
+{
+  "name": "studio-pane",
+  "version": "0.1.0",
+  "description": "Side pane with session info and Claude and Codex usage limits"
+}
